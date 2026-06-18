@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+  <!-- Content Security Policy — trusted CDNs only, no inline scripts -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 script-src 'self' https://cdn.jsdelivr.net;
+                 style-src 'self' https://fonts.googleapis.com 'unsafe-inline';
+                 font-src https://fonts.gstatic.com;
+                 connect-src 'self' https://generativelanguage.googleapis.com;
+                 img-src 'self' data:;" />
+
+  <!-- SEO Meta -->
+  <title>EcoTrack — Carbon Footprint Awareness Platform</title>
+  <meta name="description"
+        content="Track, understand, and reduce your personal carbon footprint with real-time insights, a living animated world, social leaderboards, and AI-powered coaching." />
+  <meta name="keywords" content="carbon footprint, sustainability, eco tracker, climate change, CO2, green living" />
+  <meta name="author" content="EcoTrack" />
+
+  <!-- Open Graph -->
+  <meta property="og:title"       content="EcoTrack — Carbon Footprint Awareness" />
+  <meta property="og:description" content="Make your carbon footprint visible, emotional, and actionable." />
+  <meta property="og:type"        content="website" />
+
+  <!-- Favicon (inline SVG data URI) -->
+  <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>"
+        type="image/svg+xml" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+        rel="stylesheet" />
+
+  <!-- Chart.js (pinned version for reproducibility) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
+          integrity="sha256-T9B2w0kKkRHCOA1MwWdMJbU4Fh8CeSBiJHkKNMWL8/g="
+          crossorigin="anonymous"
+          defer></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+  <!-- Skip navigation for keyboard/screen-reader users -->
+  <a href="#main-content" id="skip-link" class="sr-only">Skip to main content</a>
+
+  <!-- Toast notification container -->
+  <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       APP LAYOUT
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="app-layout">
+
+    <!-- ── Sidebar (desktop) ──────────────────────────────────── -->
+    <nav class="sidebar" role="navigation" aria-label="Main navigation">
+      <div class="sidebar-logo" role="banner">
+        <span class="sidebar-logo__icon" aria-hidden="true">🌍</span>
+        <div>
+          <div class="sidebar-logo__title">EcoTrack</div>
+          <div class="sidebar-logo__sub">Carbon Awareness</div>
+        </div>
+      </div>
+
+      <button class="nav-btn nav-btn--active" data-nav="dashboard"
+              aria-current="page" id="nav-dashboard">
+        <span class="nav-btn__icon" aria-hidden="true">📊</span>
+        <span class="nav-btn__label">Dashboard</span>
+      </button>
+      <button class="nav-btn" data-nav="world" id="nav-world">
+        <span class="nav-btn__icon" aria-hidden="true">🌿</span>
+        <span class="nav-btn__label">Living World</span>
+      </button>
+      <button class="nav-btn" data-nav="logger" id="nav-logger">
+        <span class="nav-btn__icon" aria-hidden="true">✏️</span>
+        <span class="nav-btn__label">Log Activity</span>
+      </button>
+      <button class="nav-btn" data-nav="insights" id="nav-insights">
+        <span class="nav-btn__icon" aria-hidden="true">✨</span>
+        <span class="nav-btn__label">AI Insights</span>
+      </button>
+      <button class="nav-btn" data-nav="social" id="nav-social">
+        <span class="nav-btn__icon" aria-hidden="true">🏆</span>
+        <span class="nav-btn__label">Leaderboard</span>
+      </button>
+      <button class="nav-btn" data-nav="goals" id="nav-goals">
+        <span class="nav-btn__icon" aria-hidden="true">🎯</span>
+        <span class="nav-btn__label">Goals</span>
+      </button>
+
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <span class="user-chip__avatar" aria-hidden="true">🌍</span>
+          <div>
+            <div class="user-chip__name" id="nav-username">You</div>
+            <div class="user-chip__sub">Carbon tracker</div>
+          </div>
+        </div>
+        <button class="btn btn--ghost btn--sm" id="btn-settings" aria-label="Open settings">
+          ⚙️ Settings
+        </button>
+      </div>
+    </nav>
+
+    <!-- ── Main Content ────────────────────────────────────────── -->
+    <main class="main-content" id="main-content" tabindex="-1">
+
+      <!-- ══════════════════════════════════════════════════
+           SECTION 1: DASHBOARD
+      ══════════════════════════════════════════════════ -->
+      <section id="section-dashboard" class="section" role="region"
+               aria-label="Dashboard" aria-hidden="false">
+
+        <header class="section-header">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+            <div>
+              <h1 class="section-title">Your Carbon Dashboard</h1>
+              <p class="section-subtitle">Make the invisible visible — track every gram you emit.</p>
+            </div>
+            <button class="btn btn--primary" id="fab-dash-log" data-nav="logger"
+                    aria-label="Log a new activity">
+              ✏️ Log Activity
+            </button>
+          </div>
+
+          <!-- Emotional context banner -->
+          <div id="emotion-banner" class="emotion-banner" role="status" aria-live="polite">
+            🌍 Loading your footprint…
+          </div>
+        </header>
+
+        <!-- Stat cards -->
+        <div class="stats-grid" role="list" aria-label="Carbon stats">
+          <article class="stat-card stat-card--green" role="listitem">
+            <div class="stat-card__icon" aria-hidden="true">☀️</div>
+            <div class="stat-card__label">Today</div>
+            <div class="stat-card__value" id="stat-today" aria-live="polite">— kg</div>
+            <div class="stat-card__sub">CO₂ equivalent</div>
+          </article>
+          <article class="stat-card stat-card--amber" role="listitem">
+            <div class="stat-card__icon" aria-hidden="true">📅</div>
+            <div class="stat-card__label">This Week</div>
+            <div class="stat-card__value" id="stat-week" aria-live="polite">— kg</div>
+            <div class="stat-card__sub">Last 7 days</div>
+          </article>
+          <article class="stat-card stat-card--blue" role="listitem">
+            <div class="stat-card__icon" aria-hidden="true">📈</div>
+            <div class="stat-card__label">Daily Average</div>
+            <div class="stat-card__value" id="stat-avg" aria-live="polite">— kg</div>
+            <div class="stat-card__sub">Last 30 days</div>
+          </article>
+          <article class="stat-card stat-card--green" role="listitem">
+            <div class="stat-card__icon" aria-hidden="true">🔥</div>
+            <div class="stat-card__label">Streak</div>
+            <div class="stat-card__value" id="stat-streak" aria-live="polite">0 days</div>
+            <div class="stat-card__sub">Keep it going!</div>
+          </article>
+        </div>
+
+        <!-- Equivalence text -->
+        <div class="card mb-6" style="padding:1rem 1.5rem;">
+          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:0.25rem;">
+            🌱 Today's footprint is equivalent to:
+          </p>
+          <p id="stat-equivalence" style="font-weight:600;color:#f1f5f9;font-size:1rem;"
+             aria-live="polite">—</p>
+        </div>
+
+        <!-- Benchmarks -->
+        <div class="card mb-6" role="region" aria-label="Benchmark comparisons">
+          <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;margin-bottom:1rem;">
+            📏 How does today compare?
+          </h2>
+          <div class="benchmarks">
+            <div class="benchmark-row">
+              <span class="benchmark-label">🎯 Hero target (3 kg)</span>
+              <div class="benchmark-track" role="progressbar" aria-label="vs hero target" aria-valuemin="0" aria-valuemax="100">
+                <div class="benchmark-fill" id="bar-vs-hero"></div>
+              </div>
+              <span class="benchmark-value" id="val-hero">3 kg</span>
+            </div>
+            <div class="benchmark-row">
+              <span class="benchmark-label">🌍 Paris target (6.3 kg)</span>
+              <div class="benchmark-track" role="progressbar" aria-label="vs paris target" aria-valuemin="0" aria-valuemax="100">
+                <div class="benchmark-fill" id="bar-vs-paris"></div>
+              </div>
+              <span class="benchmark-value" id="val-paris">6.3 kg</span>
+            </div>
+            <div class="benchmark-row">
+              <span class="benchmark-label">🌐 Global avg (12 kg)</span>
+              <div class="benchmark-track" role="progressbar" aria-label="vs global average" aria-valuemin="0" aria-valuemax="100">
+                <div class="benchmark-fill" id="bar-vs-global"></div>
+              </div>
+              <span class="benchmark-value" id="val-global">12 kg</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+          <div class="card" role="region" aria-label="Weekly CO2 chart">
+            <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;margin-bottom:1rem;">
+              📈 Last 7 Days
+            </h2>
+            <div class="chart-container">
+              <canvas id="chart-weekly" aria-label="Bar chart of daily CO2 emissions over last 7 days"></canvas>
+            </div>
+          </div>
+          <div class="card" role="region" aria-label="Category breakdown chart">
+            <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;margin-bottom:1rem;">
+              🥧 By Category
+            </h2>
+            <div class="chart-container">
+              <canvas id="chart-category" aria-label="Doughnut chart of emissions by category"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="card mt-6" role="region" aria-label="Today's logged activities">
+          <div class="flex justify-between items-center mb-4">
+            <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;">
+              📋 Today's Activities
+            </h2>
+            <button class="btn btn--ghost btn--sm" data-nav="logger">+ Add</button>
+          </div>
+          <div id="recent-activities" role="list" aria-live="polite" aria-label="Today's activities"></div>
+        </div>
+
+        <!-- Achievements preview -->
+        <div class="card mt-6" role="region" aria-label="Recent achievements">
+          <div class="flex justify-between items-center mb-4">
+            <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;">
+              🏅 Achievements
+            </h2>
+            <button class="btn btn--ghost btn--sm" data-nav="goals">See all</button>
+          </div>
+          <div id="achievements-preview" class="achievements-grid" aria-live="polite"></div>
+        </div>
+
+      </section>
+
+      <!-- ══════════════════════════════════════════════════
+           SECTION 2: LIVING WORLD
+      ══════════════════════════════════════════════════ -->
+      <section id="section-world" class="section section--full" hidden
+               role="region" aria-label="Living World visualization"
+               aria-hidden="true">
+
+        <div class="world-section">
+          <div style="padding:2rem 2rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;background:var(--clr-surface);border-bottom:1px solid var(--clr-border);">
+            <div>
+              <h1 class="section-title" style="margin-bottom:0.25rem;">Your Living World 🌍</h1>
+              <p class="section-subtitle">
+                This world reflects your carbon choices in real-time.
+                Log activities to watch it transform.
+              </p>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem;">
+              <div style="text-align:center;">
+                <div style="font-family:var(--ff-head);font-size:2rem;font-weight:700;color:var(--clr-primary);"
+                     id="world-health-pct" aria-live="polite">—</div>
+                <div style="font-size:0.72rem;color:var(--clr-text-2);text-transform:uppercase;letter-spacing:0.06em;">Planet Health</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Canvas -->
+          <div class="world-canvas-wrapper" role="img"
+               aria-label="Animated world that shows your environmental impact">
+            <canvas id="world-canvas"></canvas>
+            <div class="world-legend" aria-hidden="true">
+              <div class="world-legend-item">🌳 Trees grow when you choose green</div>
+              <div class="world-legend-item">🌫️ Smoke appears with high emissions</div>
+              <div class="world-legend-item">💧 River clears as your score improves</div>
+            </div>
+          </div>
+
+          <!-- Info panel -->
+          <div class="world-info-panel" role="region" aria-label="World health details">
+            <div class="world-info-stat">
+              <div class="world-info-stat__value" style="color:var(--clr-primary);" id="wi-health">—</div>
+              <div class="world-info-stat__label">Planet Health Score</div>
+            </div>
+            <div class="world-info-stat">
+              <div class="world-info-stat__value" style="color:var(--clr-warning);" id="wi-avg">—</div>
+              <div class="world-info-stat__label">Your Daily Average</div>
+            </div>
+            <div class="world-info-stat">
+              <div class="world-info-stat__value" style="color:var(--clr-info);">6.3 kg</div>
+              <div class="world-info-stat__label">Paris 2030 Target</div>
+            </div>
+            <div class="world-info-stat">
+              <div class="world-info-stat__value" style="color:var(--clr-text-2);">12.0 kg</div>
+              <div class="world-info-stat__label">Global Average</div>
+            </div>
+            <div class="world-info-stat" style="grid-column:1/-1;">
+              <p style="font-size:0.85rem;color:var(--clr-text-2);line-height:1.6;">
+                <strong style="color:var(--clr-text);">How it works:</strong>
+                Your world health score is calculated from your 30-day average daily CO₂ emissions.
+                Each activity you log updates the world in real-time — take the metro and watch a tree grow!
+              </p>
+              <div style="margin-top:1rem;">
+                <button class="btn btn--primary" data-nav="logger">✏️ Log an Activity Now</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ══════════════════════════════════════════════════
+           SECTION 3: ACTIVITY LOGGER
+      ══════════════════════════════════════════════════ -->
+      <section id="section-logger" class="section" hidden
+               role="region" aria-label="Log a carbon activity"
+               aria-hidden="true">
+
+        <header class="section-header">
+          <h1 class="section-title">Log an Activity ✏️</h1>
+          <p class="section-subtitle">
+            Every action counts. Log transport, food, energy, or shopping choices.
+          </p>
+        </header>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start;">
+          <!-- Log form -->
+          <div>
+            <form id="logger-form" novalidate aria-label="Activity logging form">
+
+              <!-- Category selector -->
+              <div class="form-group">
+                <label class="form-label" for="log-category">
+                  Category <sup aria-label="required">*</sup>
+                </label>
+                <div class="cat-tabs" role="group" aria-label="Emission categories">
+                  <button type="button" class="cat-tab cat-tab--active"
+                          data-cat="transport"
+                          aria-pressed="true">🚗 Transport</button>
+                  <button type="button" class="cat-tab"
+                          data-cat="food"
+                          aria-pressed="false">🍔 Food</button>
+                  <button type="button" class="cat-tab"
+                          data-cat="energy"
+                          aria-pressed="false">⚡ Energy</button>
+                  <button type="button" class="cat-tab"
+                          data-cat="shopping"
+                          aria-pressed="false">🛍️ Shopping</button>
+                  <button type="button" class="cat-tab"
+                          data-cat="travel"
+                          aria-pressed="false">✈️ Travel</button>
+                </div>
+                <input type="hidden" id="log-category" name="category" value="transport" />
+              </div>
+
+              <!-- Type -->
+              <div class="form-group">
+                <label class="form-label" for="log-type">
+                  Specific Activity <sup aria-label="required">*</sup>
+                </label>
+                <select id="log-type" name="type" class="form-control"
+                        aria-required="true"
+                        aria-describedby="type-hint"></select>
+                <span id="type-hint" class="text-xs muted">Choose the specific mode or item</span>
+              </div>
+
+              <!-- Amount -->
+              <div class="form-group">
+                <label class="form-label" for="log-amount">
+                  Amount <sup aria-label="required">*</sup>
+                </label>
+                <div class="input-group">
+                  <input type="number" id="log-amount" name="amount"
+                         class="form-control"
+                         placeholder="0"
+                         min="0" step="any"
+                         aria-required="true"
+                         aria-describedby="amount-unit-label amount-hint" />
+                  <span class="input-addon" id="amount-unit-label" aria-live="polite">km</span>
+                </div>
+                <span id="amount-hint" class="text-xs muted">Enter the quantity in the unit shown</span>
+              </div>
+
+              <!-- Note (optional) -->
+              <div class="form-group">
+                <label class="form-label" for="log-note">Note (optional)</label>
+                <input type="text" id="log-note" name="note"
+                       class="form-control"
+                       placeholder="e.g. morning commute"
+                       maxlength="120"
+                       aria-describedby="note-hint" />
+                <span id="note-hint" class="text-xs muted">Max 120 characters</span>
+              </div>
+
+              <button type="submit" class="btn btn--primary btn--full btn--lg"
+                      aria-label="Submit activity log">
+                🌿 Log This Activity
+              </button>
+            </form>
+          </div>
+
+          <!-- Live preview -->
+          <div>
+            <h2 style="font-family:var(--ff-head);font-weight:700;margin-bottom:1rem;font-size:1rem;">
+              ⚡ Live Emission Preview
+            </h2>
+            <div class="preview-card" id="preview-card" aria-live="polite" aria-label="Real-time emission preview">
+              <div class="preview-card__kg" id="preview-kg">0.000 kg CO₂e</div>
+              <div class="preview-card__eq" id="preview-eq">Fill in the form to see the impact</div>
+              <div id="preview-nudge" class="preview-nudge" hidden aria-live="polite">
+                <!-- Nudge content injected here -->
+              </div>
+            </div>
+
+            <!-- Quick facts card -->
+            <div class="card mt-4" style="padding:1.25rem;">
+              <h3 style="font-size:0.85rem;font-weight:700;margin-bottom:0.75rem;color:var(--clr-primary);">
+                💡 Did You Know?
+              </h3>
+              <ul style="list-style:none;display:flex;flex-direction:column;gap:0.5rem;">
+                <li style="font-size:0.8rem;color:var(--clr-text-2);">🚇 Metro emits 5× less CO₂ than a petrol car per km</li>
+                <li style="font-size:0.8rem;color:var(--clr-text-2);">🥦 Eating vegetables emits 10× less CO₂ than beef</li>
+                <li style="font-size:0.8rem;color:var(--clr-text-2);">✈️ One transatlantic flight ≈ 3 months of average driving</li>
+                <li style="font-size:0.8rem;color:var(--clr-text-2);">☀️ Solar power emits 20× less than coal electricity</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ══════════════════════════════════════════════════
+           SECTION 4: AI INSIGHTS
+      ══════════════════════════════════════════════════ -->
+      <section id="section-insights" class="section" hidden
+               role="region" aria-label="AI-powered insights"
+               aria-hidden="true">
+
+        <header class="section-header">
+          <h1 class="section-title">✨ AI-Powered Insights</h1>
+          <p class="section-subtitle">
+            Get personalised coaching from Gemini AI based on your actual carbon data.
+          </p>
+        </header>
+
+        <!-- API key panel -->
+        <div class="api-key-section" role="region" aria-label="Gemini API configuration">
+          <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;margin-bottom:0.5rem;">
+            🔑 Gemini API Key
+            <span class="badge badge--yellow" style="margin-left:0.5rem;">Optional — works without one</span>
+          </h2>
+          <p style="font-size:0.82rem;color:var(--clr-text-2);margin-bottom:1rem;">
+            Enter your Google Gemini API key for personalised AI analysis.
+            Without a key, rule-based insights will be shown.
+            Your key is stored locally and never sent anywhere except Google's API.
+          </p>
+          <div class="api-key-row">
+            <div class="api-key-input-wrapper">
+              <input type="password"
+                     id="insights-api-key"
+                     class="form-control"
+                     placeholder="AIza…"
+                     aria-label="Gemini API key"
+                     aria-describedby="api-key-help"
+                     autocomplete="off"
+                     spellcheck="false" />
+              <button type="button" id="toggle-api-key" class="toggle-visibility"
+                      aria-label="Show API key">👁️</button>
+            </div>
+            <button class="btn btn--primary" id="btn-generate-insights"
+                    aria-label="Generate AI insights">
+              ✨ Generate Insights
+            </button>
+          </div>
+          <p id="api-key-help" style="font-size:0.72rem;color:var(--clr-text-3);margin-top:0.5rem;">
+            Get a free key at <strong>aistudio.google.com</strong> — never share or commit your key publicly.
+          </p>
+        </div>
+
+        <!-- Insights output -->
+        <div id="insights-output" aria-live="polite" aria-label="Insights results">
+          <div class="empty-state">
+            <span aria-hidden="true">🤖</span>
+            <p>Click "Generate Insights" to load your personalised carbon analysis.</p>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ══════════════════════════════════════════════════
+           SECTION 5: SOCIAL LEADERBOARD
+      ══════════════════════════════════════════════════ -->
+      <section id="section-social" class="section" hidden
+               role="region" aria-label="Social leaderboard"
+               aria-hidden="true">
+
+        <header class="section-header">
+          <h1 class="section-title">🏆 Social Leaderboard</h1>
+          <p class="section-subtitle">
+            Compete with friends, floors, and departments. Collective action starts with friendly rivalry.
+          </p>
+        </header>
+
+        <div class="social-grid">
+          <!-- Leaderboard panel -->
+          <div>
+            <!-- Tab bar -->
+            <div class="tab-bar" role="tablist" aria-label="Leaderboard view">
+              <button class="tab tab--active" data-lb-tab="individual"
+                      role="tab" aria-selected="true" id="tab-individual">
+                👤 Individual
+              </button>
+              <button class="tab" data-lb-tab="team"
+                      role="tab" aria-selected="false" id="tab-team">
+                👥 Teams
+              </button>
+            </div>
+
+            <div id="individual-leaderboard" class="leaderboard-list"
+                 role="table" aria-label="Individual leaderboard" aria-live="polite"></div>
+            <div id="team-leaderboard" class="leaderboard-list" hidden
+                 role="table" aria-label="Team leaderboard" aria-live="polite"></div>
+          </div>
+
+          <!-- Team management sidebar -->
+          <div style="display:flex;flex-direction:column;gap:1.5rem;">
+
+            <!-- My team -->
+            <div class="card" role="region" aria-label="Your team">
+              <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;margin-bottom:1rem;">
+                ⭐ My Team
+              </h2>
+              <div id="my-team-info"></div>
+            </div>
+
+            <!-- Create team -->
+            <div class="card" role="region" aria-label="Create a new team">
+              <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;margin-bottom:1rem;">
+                🆕 Create Team
+              </h2>
+              <form id="form-create-team" novalidate aria-label="Create team form">
+                <div class="form-group">
+                  <label class="form-label" for="team-name-input">Team Name</label>
+                  <input type="text" id="team-name-input" class="form-control"
+                         placeholder="e.g. Hostel A, Eng Batch"
+                         maxlength="40" aria-required="true" />
+                </div>
+                <button type="submit" class="btn btn--primary btn--full">Create Team</button>
+              </form>
+            </div>
+
+            <!-- Join team -->
+            <div class="card" role="region" aria-label="Join an existing team">
+              <h2 style="font-family:var(--ff-head);font-size:1rem;font-weight:700;margin-bottom:1rem;">
+                🔗 Join Team
+              </h2>
+              <form id="form-join-team" novalidate aria-label="Join team form">
+                <div class="form-group">
+                  <label class="form-label" for="join-team-input">Team Name</label>
+                  <input type="text" id="join-team-input" class="form-control"
+                         placeholder="Enter exact team name"
+                         maxlength="40" aria-required="true" />
+                </div>
+                <button type="submit" class="btn btn--secondary btn--full">Join Team</button>
+              </form>
+            </div>
+
+            <!-- Scoring info -->
+            <div class="card" role="region" aria-label="How scoring works">
+              <h2 style="font-family:var(--ff-head);font-size:0.9rem;font-weight:700;margin-bottom:0.75rem;">
+                ℹ️ How Scores Work
+              </h2>
+              <ul style="list-style:none;display:flex;flex-direction:column;gap:0.5rem;">
+                <li class="text-xs muted">🌿 Lower daily avg = higher base score</li>
+                <li class="text-xs muted">🔥 Each streak day adds +0.5 bonus pts</li>
+                <li class="text-xs muted">🏅 Max streak bonus: +10 points</li>
+                <li class="text-xs muted">📊 Score range: 0–100</li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ══════════════════════════════════════════════════
+           SECTION 6: GOALS & ACHIEVEMENTS
+      ══════════════════════════════════════════════════ -->
+      <section id="section-goals" class="section" hidden
+               role="region" aria-label="Goals and achievements"
+               aria-hidden="true">
+
+        <header class="section-header">
+          <h1 class="section-title">🎯 Goals & Achievements</h1>
+          <p class="section-subtitle">
+            Take on challenges, build streaks, and unlock badges as you reduce your impact.
+          </p>
+        </header>
+
+        <!-- Challenges -->
+        <div class="card mb-6" role="region" aria-label="Active challenges">
+          <h2 style="font-family:var(--ff-head);font-size:1.1rem;font-weight:700;margin-bottom:1.5rem;">
+            🏃 Carbon Challenges
+          </h2>
+          <div id="challenges-list" class="challenges-grid" aria-live="polite"></div>
+        </div>
+
+        <!-- Achievements -->
+        <div class="card" role="region" aria-label="All achievements">
+          <h2 style="font-family:var(--ff-head);font-size:1.1rem;font-weight:700;margin-bottom:1.5rem;">
+            🏅 All Achievements
+          </h2>
+          <div id="achievements-full" class="achievements-grid" aria-live="polite"></div>
+        </div>
+
+        <!-- Debug / Test panel -->
+        <div class="card mt-6" role="region" aria-label="Developer tools">
+          <h2 style="font-family:var(--ff-head);font-size:0.9rem;font-weight:700;margin-bottom:1rem;color:var(--clr-text-2);">
+            🧪 Developer Tools
+          </h2>
+          <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+            <button class="btn btn--ghost btn--sm" id="btn-run-tests">
+              Run Unit Tests
+            </button>
+            <button class="btn btn--ghost btn--sm" id="btn-export">
+              📤 Export Data
+            </button>
+          </div>
+          <div id="test-results-panel" hidden style="margin-top:1rem;">
+            <div id="test-results"></div>
+          </div>
+        </div>
+
+      </section>
+
+    </main><!-- /main-content -->
+  </div><!-- /app-layout -->
+
+  <!-- ── Mobile Bottom Navigation ──────────────────────────── -->
+  <nav class="bottom-nav" role="navigation" aria-label="Mobile navigation">
+    <button class="nav-btn nav-btn--active" data-nav="dashboard" aria-current="page">
+      <span class="nav-btn__icon" aria-hidden="true">📊</span>
+      <span class="nav-btn__label">Home</span>
+    </button>
+    <button class="nav-btn" data-nav="world">
+      <span class="nav-btn__icon" aria-hidden="true">🌿</span>
+      <span class="nav-btn__label">World</span>
+    </button>
+    <button class="nav-btn" data-nav="logger">
+      <span class="nav-btn__icon" aria-hidden="true">✏️</span>
+      <span class="nav-btn__label">Log</span>
+    </button>
+    <button class="nav-btn" data-nav="insights">
+      <span class="nav-btn__icon" aria-hidden="true">✨</span>
+      <span class="nav-btn__label">AI</span>
+    </button>
+    <button class="nav-btn" data-nav="social">
+      <span class="nav-btn__icon" aria-hidden="true">🏆</span>
+      <span class="nav-btn__label">Rank</span>
+    </button>
+  </nav>
+
+  <!-- ── Nudge Modal ─────────────────────────────────────────── -->
+  <div id="nudge-modal" class="modal" role="dialog" aria-modal="true"
+       aria-labelledby="nudge-modal-title" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="modal-close" aria-label="Close nudge">✕</button>
+      <div class="modal-icon" aria-hidden="true">💡</div>
+      <h2 class="modal-title" id="nudge-modal-title">Greener Option Available</h2>
+      <p class="modal-body" id="nudge-modal-text"></p>
+      <p class="modal-saving" id="nudge-modal-saving"></p>
+      <div style="margin-top:1.5rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+        <button class="btn btn--primary modal-close">Got it! 🌿</button>
+        <button class="btn btn--ghost modal-close" data-nav="logger">Log different</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Settings Modal ──────────────────────────────────────── -->
+  <div id="settings-modal" class="modal" role="dialog" aria-modal="true"
+       aria-labelledby="settings-modal-title" hidden>
+    <div class="modal-backdrop" id="btn-close-settings"></div>
+    <div class="modal-content settings-modal-content">
+      <button class="modal-close" id="btn-close-settings-x" aria-label="Close settings">✕</button>
+      <h2 class="modal-title" id="settings-modal-title">⚙️ Settings</h2>
+
+      <form id="settings-form" novalidate aria-label="Settings form">
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">👤 Profile</h3>
+          <div class="form-group">
+            <label class="form-label" for="profile-name">Display Name</label>
+            <input type="text" id="profile-name" class="form-control"
+                   placeholder="Your name" maxlength="40" />
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">🎯 Targets</h3>
+          <div class="form-group">
+            <label class="form-label" for="daily-target">Daily CO₂ target (kg)</label>
+            <input type="number" id="daily-target" class="form-control"
+                   placeholder="6.3" min="0.1" max="50" step="0.1" />
+            <span class="text-xs muted">Paris Agreement target: 6.3 kg/day</span>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">🔑 API Key</h3>
+          <div class="form-group">
+            <label class="form-label" for="settings-api-key">Gemini API Key</label>
+            <input type="password" id="settings-api-key" class="form-control"
+                   placeholder="AIza… (optional)"
+                   autocomplete="off" spellcheck="false" />
+            <span class="text-xs muted">Stored locally, never shared. Get one free at aistudio.google.com</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--full">Save Settings</button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ── App Entry Point (single module script) ──────────────── -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
