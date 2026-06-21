@@ -107,7 +107,7 @@ async function callGemini(apiKey) {
   } catch {
     // Fallback: extract JSON block if wrapped in markdown
     const match = text.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
+    if (match) {return JSON.parse(match[0]);}
     throw new Error('Could not parse Gemini response as JSON');
   }
 }
@@ -203,7 +203,7 @@ const TREND_COLORS = { improving: '#22c55e', worsening: '#ef4444', stable: '#f59
  */
 export function renderInsights(result) {
   const container = document.getElementById('insights-output');
-  if (!container) return;
+  if (!container) {return;}
 
   const { data, source, error } = result;
   if (!data) {
@@ -222,7 +222,7 @@ export function renderInsights(result) {
       <p class="insights-summary">${data.summary ?? ''}</p>
       <div class="insights-meta">
         ${sourceBadge}
-        ${error ? `<span class="badge badge--red">⚠️ API unavailable — showing static insights</span>` : ''}
+        ${error ? '<span class="badge badge--red">⚠️ API unavailable — showing static insights</span>' : ''}
       </div>
     </div>
 

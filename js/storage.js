@@ -28,7 +28,7 @@ const KEYS = {
  * @returns {string}
  */
 function sanitize(str) {
-  if (typeof str !== 'string') return String(str ?? '');
+  if (typeof str !== 'string') {return String(str ?? '');}
   return str
     .replace(/</g,  '&lt;')
     .replace(/>/g,  '&gt;')
@@ -43,8 +43,8 @@ function sanitize(str) {
  * @returns {*}
  */
 function deepSanitize(value) {
-  if (typeof value === 'string')  return sanitize(value);
-  if (Array.isArray(value))       return value.map(deepSanitize);
+  if (typeof value === 'string')  {return sanitize(value);}
+  if (Array.isArray(value))       {return value.map(deepSanitize);}
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => [sanitize(k), deepSanitize(v)])
@@ -165,7 +165,7 @@ class StorageManager {
     const current = this.getSettings();
     const sanitized = deepSanitize(updates);
     const allowed = ['geminiApiKey', 'dailyTarget', 'weeklyTarget', 'theme',
-                     'notifications', 'units', 'teamId', 'teamName'];
+      'notifications', 'units', 'teamId', 'teamName'];
     const filtered = Object.fromEntries(
       Object.entries(sanitized).filter(([k]) => allowed.includes(k))
     );
@@ -185,7 +185,7 @@ class StorageManager {
    * @returns {object} saved entry with generated id and timestamp
    */
   addActivity(entry) {
-    if (!entry || typeof entry !== 'object') throw new Error('Invalid activity entry');
+    if (!entry || typeof entry !== 'object') {throw new Error('Invalid activity entry');}
 
     // Validate required fields
     const required = ['category', 'type', 'amount', 'kgCO2'];
@@ -212,7 +212,7 @@ class StorageManager {
 
     activities.unshift(saved); // newest first
     // Keep max 1000 entries to avoid bloating storage
-    if (activities.length > 1000) activities.splice(1000);
+    if (activities.length > 1000) {activities.splice(1000);}
     safeSet(KEYS.ACTIVITIES, activities);
 
     this._updateStreak();
@@ -254,7 +254,7 @@ class StorageManager {
     const user = this.getUser();
     const todayStr = new Date().toDateString();
 
-    if (user.lastLogDate === todayStr) return; // Already logged today
+    if (user.lastLogDate === todayStr) {return;} // Already logged today
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -295,7 +295,7 @@ class StorageManager {
 
   startChallenge(challengeId) {
     const state = this.getChallengesState();
-    if (state[challengeId]?.completed) return; // already done
+    if (state[challengeId]?.completed) {return;} // already done
     state[challengeId] = {
       startDate: new Date().toISOString(),
       progress:  0,
@@ -306,14 +306,14 @@ class StorageManager {
 
   updateChallengeProgress(challengeId, progress) {
     const state = this.getChallengesState();
-    if (!state[challengeId]) return;
+    if (!state[challengeId]) {return;}
     state[challengeId].progress = progress;
     safeSet(KEYS.CHALLENGES, state);
   }
 
   completeChallenge(challengeId) {
     const state = this.getChallengesState();
-    if (!state[challengeId]) return;
+    if (!state[challengeId]) {return;}
     state[challengeId].completed  = true;
     state[challengeId].completedAt = new Date().toISOString();
     safeSet(KEYS.CHALLENGES, state);

@@ -442,7 +442,7 @@ function testIntegrationPipeline() {
   const expectedKg = parseFloat((0.21 * AMOUNT).toFixed(4)); // car_petrol factor
 
   // Submit an activity
-  const { entry, kgCO2, stats: afterStats } = (function () {
+  const { kgCO2, stats: afterStats } = (function () {
     const { submitActivity } = window.__ecoTrackModules ?? {};
     if (!submitActivity) {
       // Direct import path – use tracker directly

@@ -80,7 +80,7 @@ export class LivingWorld {
 
   /** Begin animation loop. */
   start() {
-    if (!this.ctx) return;
+    if (!this.ctx) {return;}
     const tick = () => {
       this._update();
       this._draw();
@@ -91,7 +91,7 @@ export class LivingWorld {
 
   /** Stop animation loop. */
   stop() {
-    if (this.frame) cancelAnimationFrame(this.frame);
+    if (this.frame) {cancelAnimationFrame(this.frame);}
     this.frame = null;
   }
 
@@ -147,14 +147,14 @@ export class LivingWorld {
     // Move clouds (faster when polluted)
     for (const c of this.clouds) {
       c.x += c.speed * (1 + pollution * 0.5);
-      if (c.x > w + c.w) c.x = -c.w;
+      if (c.x > w + c.w) {c.x = -c.w;}
     }
 
     // Move birds (only visible when health > 40)
     for (const b of this.birds) {
       b.x += b.speed;
       b.flap += 0.15;
-      if (b.x > w + 20) b.x = -20;
+      if (b.x > w + 20) {b.x = -20;}
     }
 
     // Animate smoke particles
@@ -199,7 +199,7 @@ export class LivingWorld {
     this._drawCity(w, h, t);
     this._drawSmoke(w, h, t);
     this._drawTrees(w, h, t, time);
-    if (health > 40) this._drawBirds(w, h, t);
+    if (health > 40) {this._drawBirds(w, h, t);}
     this._drawHUD(w, h);
   }
 
@@ -383,7 +383,7 @@ export class LivingWorld {
   }
 
   _drawSmoke(w, h, t) {
-    if (t <= 0.3) return;
+    if (t <= 0.3) {return;}
     const ctx     = this.ctx;
     const alpha   = (t - 0.3) / 0.7;
 
@@ -464,7 +464,7 @@ export class LivingWorld {
     ctx.fill();
   }
 
-  _drawBirds(w, h, t) {
+  _drawBirds(_w, _h, _t) {
     const ctx = this.ctx;
     const alpha = Math.max(0, (this.health - 40) / 60);
     ctx.strokeStyle = `rgba(30,30,30,${alpha * 0.7})`;
@@ -479,7 +479,7 @@ export class LivingWorld {
     }
   }
 
-  _drawHUD(w, h) {
+  _drawHUD(w, _h) {
     const ctx   = this.ctx;
     const score = Math.round(this.health);
 
@@ -514,9 +514,9 @@ export class LivingWorld {
   // ── Resize ───────────────────────────────────────────────────────────────
 
   _resize() {
-    if (!this.canvas) return;
+    if (!this.canvas) {return;}
     const parent = this.canvas.parentElement;
-    if (!parent) return;
+    if (!parent) {return;}
     this.canvas.width  = parent.clientWidth  || 800;
     this.canvas.height = parent.clientHeight || 380;
   }

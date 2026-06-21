@@ -89,7 +89,7 @@ export const EQUIVALENCES = [
  * @returns {string} - readable string e.g. "charging 122 smartphones"
  */
 export function getEquivalence(kgCO2) {
-  if (kgCO2 <= 0) return 'zero emissions — perfect! 🌿';
+  if (kgCO2 <= 0) {return 'zero emissions — perfect! 🌿';}
   // Pick a contextually interesting equivalence
   const eq = EQUIVALENCES[Math.floor(kgCO2 * 7) % EQUIVALENCES.length];
   const value = (kgCO2 * eq.multiplier).toFixed(1);
@@ -102,12 +102,12 @@ export function getEquivalence(kgCO2) {
  * @returns {{ label: string, color: string, emoji: string }}
  */
 export function getEmotionalContext(kgCO2) {
-  if (kgCO2 === 0)  return { label: 'Carbon-free day!',     color: '#06b6d4', emoji: '🌊', tier: 'hero'    };
-  if (kgCO2 < 2)   return { label: 'Outstanding',           color: '#10b981', emoji: '🌟', tier: 'hero'    };
-  if (kgCO2 < 5)   return { label: 'Great',                 color: '#22c55e', emoji: '😊', tier: 'good'    };
-  if (kgCO2 < 8)   return { label: 'Average',               color: '#84cc16', emoji: '😐', tier: 'average' };
-  if (kgCO2 < 12)  return { label: 'Above average',         color: '#f59e0b', emoji: '😟', tier: 'warn'    };
-  if (kgCO2 < 20)  return { label: 'High impact',           color: '#f97316', emoji: '⚠️', tier: 'high'    };
+  if (kgCO2 === 0)  {return { label: 'Carbon-free day!',     color: '#06b6d4', emoji: '🌊', tier: 'hero'    };}
+  if (kgCO2 < 2)   {return { label: 'Outstanding',           color: '#10b981', emoji: '🌟', tier: 'hero'    };}
+  if (kgCO2 < 5)   {return { label: 'Great',                 color: '#22c55e', emoji: '😊', tier: 'good'    };}
+  if (kgCO2 < 8)   {return { label: 'Average',               color: '#84cc16', emoji: '😐', tier: 'average' };}
+  if (kgCO2 < 12)  {return { label: 'Above average',         color: '#f59e0b', emoji: '😟', tier: 'warn'    };}
+  if (kgCO2 < 20)  {return { label: 'High impact',           color: '#f97316', emoji: '⚠️', tier: 'high'    };}
   return               { label: 'Very high impact',      color: '#ef4444', emoji: '🔥', tier: 'critical' };
 }
 
@@ -131,7 +131,7 @@ export const TRANSPORT_ALTERNATIVES = {
  */
 export function getTransportNudge(chosenMode, distanceKm) {
   const alternatives = TRANSPORT_ALTERNATIVES[chosenMode];
-  if (!alternatives || distanceKm <= 0) return null;
+  if (!alternatives || distanceKm <= 0) {return null;}
 
   const chosenFactor = EMISSION_FACTORS.transport[chosenMode]?.factor ?? 0;
   const bestAlt = alternatives[0]; // First is greenest
@@ -139,7 +139,7 @@ export function getTransportNudge(chosenMode, distanceKm) {
   const altLabel  = EMISSION_FACTORS.transport[bestAlt]?.label ?? bestAlt;
 
   const savings = (chosenFactor - altFactor) * distanceKm;
-  if (savings <= 0) return null;
+  if (savings <= 0) {return null;}
 
   const ratio = chosenFactor > 0 ? (chosenFactor / Math.max(altFactor, 0.001)).toFixed(1) : 1;
 

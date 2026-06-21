@@ -83,9 +83,6 @@ import {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Maximum number of activities retained in storage. */
-const MAX_ACTIVITIES = 1000;
-
 /** Number of days in the rolling stats window. */
 const STATS_WINDOW_DAYS = 30;
 

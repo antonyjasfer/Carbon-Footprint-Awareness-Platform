@@ -60,7 +60,7 @@ export function announce(message, politeness = 'polite') {
  * @param {HTMLElement} container
  */
 export function focusFirst(container) {
-  if (!container) return;
+  if (!container) {return;}
   const focusable = container.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );
@@ -75,7 +75,7 @@ export function focusFirst(container) {
  * @param {HTMLElement|null} el
  */
 export function restoreFocus(el) {
-  if (el && typeof el.focus === 'function') el.focus();
+  if (el && typeof el.focus === 'function') {el.focus();}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,9 +94,9 @@ const FOCUSABLE_SELECTORS =
  */
 export function trapFocus(modal) {
   const handler = (e) => {
-    if (e.key !== 'Tab') return;
+    if (e.key !== 'Tab') {return;}
     const focusable = [...modal.querySelectorAll(FOCUSABLE_SELECTORS)];
-    if (focusable.length === 0) return;
+    if (focusable.length === 0) {return;}
     const first = focusable[0];
     const last  = focusable[focusable.length - 1];
 
@@ -119,7 +119,7 @@ export function trapFocus(modal) {
  */
 export function initSkipLink() {
   const skip = document.getElementById('skip-link');
-  if (!skip) return;
+  if (!skip) {return;}
   skip.addEventListener('click', (e) => {
     e.preventDefault();
     const main = document.getElementById('main-content');
@@ -212,7 +212,7 @@ function getToastContainer() {
  */
 export function showToast(message, type = 'info', duration = 4000) {
   const container = getToastContainer();
-  if (!container) return;
+  if (!container) {return;}
 
   const toast = document.createElement('div');
   toast.className = `toast toast--${type}`;

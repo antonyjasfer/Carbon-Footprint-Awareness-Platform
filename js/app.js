@@ -8,14 +8,13 @@
  */
 
 import { storage }    from './storage.js';
-import { EMISSION_FACTORS, CATEGORIES, CHALLENGES, ACHIEVEMENTS, getEquivalence, getEmotionalContext } from './data.js';
+import { EMISSION_FACTORS, CHALLENGES, ACHIEVEMENTS } from './data.js';
 import { submitActivity, previewEmission, computeStats, computeWorldHealth } from './tracker.js';
 import { LivingWorld } from './world.js';
 import { renderWeeklyChart, renderCategoryChart, renderTrendChart, renderCarbonHeatmap } from './charts.js';
 import { fetchInsights, renderInsights }     from './insights.js';
 import { renderIndividualLeaderboard, renderTeamLeaderboard, createTeam, joinTeam } from './social.js';
 import { showToast, announce, initSkipLink, initKeyboardShortcuts, registerShortcut, trapFocus, focusFirst } from './accessibility.js';
-import { runAllTests } from './tests.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App state
@@ -32,7 +31,7 @@ const state = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function navigateTo(sectionId) {
-  if (state.currentSection === sectionId) return;
+  if (state.currentSection === sectionId) {return;}
 
   // Hide current section
   document.querySelectorAll('.section').forEach(s => {
@@ -42,7 +41,7 @@ function navigateTo(sectionId) {
 
   // Show target section
   const target = document.getElementById(`section-${sectionId}`);
-  if (!target) return;
+  if (!target) {return;}
   target.hidden = false;
   target.setAttribute('aria-hidden', 'false');
 
@@ -87,6 +86,8 @@ function onSectionEnter(sectionId) {
     case 'goals':
       refreshGoals();
       break;
+    default:
+      break;
   }
 }
 
@@ -99,13 +100,13 @@ function refreshDashboard() {
   const health = computeWorldHealth(stats.avgDailyKg);
 
   // Update Living World
-  if (state.livingWorld) state.livingWorld.setHealth(health);
+  if (state.livingWorld) {state.livingWorld.setHealth(health);}
 
   // Update world info panel
   const el_wi_health = document.getElementById('wi-health');
   const el_wi_avg    = document.getElementById('wi-avg');
-  if (el_wi_health) el_wi_health.textContent = `${health}%`;
-  if (el_wi_avg)    el_wi_avg.textContent    = formatKg(stats.avgDailyKg);
+  if (el_wi_health) {el_wi_health.textContent = `${health}%`;}
+  if (el_wi_avg)    {el_wi_avg.textContent    = formatKg(stats.avgDailyKg);}
 
   // Stat cards
   setText('stat-today',      formatKg(stats.todayKg));
@@ -167,7 +168,6 @@ function renderForecastWidget(stats) {
   const trendArrow    = forecast.improving ? '↘️ Improving' : (forecast.trendSlope > 0.01 ? '↗️ Rising' : '→ Stable');
   const statusColor   = STATUS_COLORS[forecast.status] ?? '#94a3b8';
   const statusLabel   = STATUS_LABELS[forecast.status] ?? forecast.status;
-  const dailyBudget   = stats.vsParisTarget;
   const budgetPct     = Math.min(100, (stats.monthKg / monthlyBudget) * 100);
 
   container.innerHTML = `
@@ -206,21 +206,21 @@ function renderForecastWidget(stats) {
 
 function setContextBar(id, actual, target) {
   const el = document.getElementById(id);
-  if (!el) return;
+  if (!el) {return;}
   const pct = Math.min(200, target > 0 ? (actual / target) * 100 : 0);
   el.style.width = `${Math.min(pct, 100)}%`;
   el.style.background = pct <= 100 ? '#22c55e' : '#ef4444';
 }
 
 function formatKg(kg) {
-  if (kg === 0) return '0.00 kg';
-  if (kg >= 1000) return `${(kg / 1000).toFixed(2)} t`;
+  if (kg === 0) {return '0.00 kg';}
+  if (kg >= 1000) {return `${(kg / 1000).toFixed(2)} t`;}
   return `${kg.toFixed(2)} kg`;
 }
 
 function setText(id, text) {
   const el = document.getElementById(id);
-  if (el) el.textContent = text;
+  if (el) {el.textContent = text;}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -229,7 +229,7 @@ function setText(id, text) {
 
 function renderRecentActivities() {
   const container = document.getElementById('recent-activities');
-  if (!container) return;
+  if (!container) {return;}
 
   const activities = storage.getTodayActivities().slice(0, 10);
 
@@ -272,10 +272,10 @@ function renderRecentActivities() {
 function formatRelativeTime(isoTimestamp) {
   const diff = Date.now() - new Date(isoTimestamp).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1)  return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1)  {return 'just now';}
+  if (mins < 60) {return `${mins}m ago`;}
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `${hrs}h ago`;
+  if (hrs < 24)  {return `${hrs}h ago`;}
   return new Date(isoTimestamp).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
 }
 
@@ -285,14 +285,14 @@ function formatRelativeTime(isoTimestamp) {
 
 function resetLoggerForm() {
   const form = document.getElementById('logger-form');
-  if (form) form.reset();
+  if (form) {form.reset();}
   buildTypeOptions('transport');
   updateLivePreview();
 }
 
 function buildTypeOptions(category) {
   const select = document.getElementById('log-type');
-  if (!select) return;
+  if (!select) {return;}
 
   const factors = EMISSION_FACTORS[category] ?? {};
   select.innerHTML = Object.entries(factors).map(([key, val]) =>
@@ -305,7 +305,7 @@ function buildTypeOptions(category) {
 
 function updateAmountLabel(category, type) {
   const label = document.getElementById('amount-unit-label');
-  if (!label) return;
+  if (!label) {return;}
   const factor = EMISSION_FACTORS[category]?.[type];
   label.textContent = factor?.unit ?? 'units';
 }
@@ -358,7 +358,7 @@ async function handleLogSubmit(e) {
 
     // Update Living World immediately
     const stats = computeStats();
-    if (state.livingWorld) state.livingWorld.setHealth(computeWorldHealth(stats.avgDailyKg));
+    if (state.livingWorld) {state.livingWorld.setHealth(computeWorldHealth(stats.avgDailyKg));}
 
     // Toast
     const icon = EMISSION_FACTORS[category]?.[type]?.icon ?? '📌';
@@ -383,7 +383,7 @@ async function handleLogSubmit(e) {
     updateLivePreview();
 
     // If on dashboard, refresh it
-    if (state.currentSection === 'dashboard') refreshDashboard();
+    if (state.currentSection === 'dashboard') {refreshDashboard();}
 
   } catch (err) {
     showToast(`Error: ${err.message}`, 'error');
@@ -392,7 +392,7 @@ async function handleLogSubmit(e) {
 
 function showNudgeModal(nudge) {
   const modal = document.getElementById('nudge-modal');
-  if (!modal) return;
+  if (!modal) {return;}
 
   document.getElementById('nudge-modal-text').textContent = nudge.message;
   document.getElementById('nudge-modal-saving').textContent =
@@ -417,21 +417,21 @@ function showNudgeModal(nudge) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function loadInsights(apiKeyOverride) {
-  if (state.insightsLoading) return;
+  if (state.insightsLoading) {return;}
   state.insightsLoading = true;
 
   const btn = document.getElementById('btn-generate-insights');
   const out = document.getElementById('insights-output');
 
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating…'; }
-  if (out) out.innerHTML = '<div class="loading-spinner" role="status" aria-label="Loading insights"></div>';
+  if (out) {out.innerHTML = '<div class="loading-spinner" role="status" aria-label="Loading insights"></div>';}
 
   try {
     const result = await fetchInsights(apiKeyOverride);
     renderInsights(result);
-    if (result.source === 'gemini') showToast('✨ Gemini AI insights loaded!', 'success');
+    if (result.source === 'gemini') {showToast('✨ Gemini AI insights loaded!', 'success');}
   } catch (err) {
-    if (out) out.innerHTML = `<p class="insights-error">Failed to load insights: ${err.message}</p>`;
+    if (out) {out.innerHTML = `<p class="insights-error">Failed to load insights: ${err.message}</p>`;}
     showToast('Could not load insights', 'error');
   } finally {
     state.insightsLoading = false;
@@ -461,6 +461,7 @@ function refreshSocial() {
           <button class="btn btn--ghost btn--sm" id="btn-leave-team">Leave</button>
         </div>`;
       document.getElementById('btn-leave-team')?.addEventListener('click', () => {
+        // eslint-disable-next-line no-alert
         if (confirm('Leave your team?')) {
           storage.saveSettings({ teamId: null, teamName: null });
           refreshSocial();
@@ -478,7 +479,7 @@ function handleCreateTeam(e) {
   const name = document.getElementById('team-name-input')?.value?.trim();
   const result = createTeam(name);
   showToast(result.message, result.success ? 'success' : 'error');
-  if (result.success) refreshSocial();
+  if (result.success) {refreshSocial();}
 }
 
 function handleJoinTeam(e) {
@@ -486,7 +487,7 @@ function handleJoinTeam(e) {
   const name = document.getElementById('join-team-input')?.value?.trim();
   const result = joinTeam(name);
   showToast(result.message, result.success ? 'success' : 'error');
-  if (result.success) refreshSocial();
+  if (result.success) {refreshSocial();}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -500,10 +501,9 @@ function refreshGoals() {
 
 function renderGoalsSection() {
   const container = document.getElementById('challenges-list');
-  if (!container) return;
+  if (!container) {return;}
 
   const challengeState = storage.getChallengesState();
-  const stats          = computeStats();
 
   container.innerHTML = CHALLENGES.map(ch => {
     const chState  = challengeState[ch.id];
@@ -553,7 +553,7 @@ function renderGoalsSection() {
 
 function renderAchievements(containerId, limit = 999) {
   const container = document.getElementById(containerId);
-  if (!container) return;
+  if (!container) {return;}
 
   const unlocked = storage.getUnlockedAchievements();
   const stats    = computeStats();
@@ -594,11 +594,10 @@ function initSettings() {
     const name       = document.getElementById('profile-name')?.value?.trim();
     const target     = parseFloat(document.getElementById('daily-target')?.value);
     const apiKey     = document.getElementById('settings-api-key')?.value?.trim();
-    const teamName   = document.getElementById('settings-team-name')?.value?.trim();
 
-    if (name)   storage.saveUser({ name });
-    if (!isNaN(target) && target > 0) storage.saveSettings({ dailyTarget: target, weeklyTarget: target * 7 });
-    if (apiKey !== undefined) storage.saveSettings({ geminiApiKey: apiKey });
+    if (name)   {storage.saveUser({ name });}
+    if (!isNaN(target) && target > 0) {storage.saveSettings({ dailyTarget: target, weeklyTarget: target * 7 });}
+    if (apiKey !== undefined) {storage.saveSettings({ geminiApiKey: apiKey });}
 
     // Update display name
     setText('nav-username', name || 'You');
@@ -608,7 +607,7 @@ function initSettings() {
 
 function setInputValue(id, value) {
   const el = document.getElementById(id);
-  if (el) el.value = value;
+  if (el) {el.value = value;}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -618,7 +617,7 @@ function setInputValue(id, value) {
 function initApiKeyToggle() {
   const toggle = document.getElementById('toggle-api-key');
   const input  = document.getElementById('insights-api-key');
-  if (!toggle || !input) return;
+  if (!toggle || !input) {return;}
 
   toggle.addEventListener('click', () => {
     const visible = input.type === 'text';
@@ -655,7 +654,7 @@ function wireEvents() {
       const cat = btn.dataset.cat;
       // Update hidden input
       const catInput = document.getElementById('log-category');
-      if (catInput) catInput.value = cat;
+      if (catInput) {catInput.value = cat;}
       // Update aria-pressed
       document.querySelectorAll('[data-cat]').forEach(b => {
         b.classList.remove('cat-tab--active');
@@ -689,7 +688,7 @@ function wireEvents() {
   // Insights
   document.getElementById('btn-generate-insights')?.addEventListener('click', () => {
     const key = document.getElementById('insights-api-key')?.value?.trim();
-    if (key) storage.saveSettings({ geminiApiKey: key });
+    if (key) {storage.saveSettings({ geminiApiKey: key });}
     loadInsights(key || undefined);
   });
 
@@ -729,7 +728,7 @@ function wireEvents() {
   // Settings modal
   document.getElementById('btn-settings')?.addEventListener('click', () => {
     const modal = document.getElementById('settings-modal');
-    if (!modal) return;
+    if (!modal) {return;}
     const isHidden = modal.hidden;
     modal.hidden = !isHidden;
     modal.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
@@ -744,7 +743,6 @@ function wireEvents() {
 
   // Debug: run tests
   document.getElementById('btn-run-tests')?.addEventListener('click', () => {
-    const { renderTestResults } = /** @type {any} */(window._tests ?? {});
     const panel = document.getElementById('test-results-panel');
     if (panel) {
       panel.hidden = !panel.hidden;

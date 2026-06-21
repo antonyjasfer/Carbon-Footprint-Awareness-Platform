@@ -51,7 +51,7 @@ const _charts = new Map();
  */
 function upsertChart(canvasId, config) {
   const canvas = document.getElementById(canvasId);
-  if (!canvas) return null;
+  if (!canvas) {return null;}
 
   // Destroy existing instance to prevent "Canvas is already in use" error
   if (_charts.has(canvasId)) {
@@ -67,7 +67,7 @@ function upsertChart(canvasId, config) {
  * Destroys all registered charts (call on teardown).
  */
 export function destroyAll() {
-  for (const chart of _charts.values()) chart.destroy();
+  for (const chart of _charts.values()) {chart.destroy();}
   _charts.clear();
 }
 
@@ -93,17 +93,17 @@ export function renderWeeklyChart(canvasId = 'chart-weekly') {
           data,
           backgroundColor: data.map(v =>
             v === 0     ? 'rgba(16,185,129,0.3)' :
-            v <= 3      ? 'rgba(34,197,94,0.6)'  :
-            v <= 6.3    ? 'rgba(132,204,22,0.6)' :
-            v <= 12     ? 'rgba(245,158,11,0.6)' :
-                          'rgba(239,68,68,0.6)'
+              v <= 3      ? 'rgba(34,197,94,0.6)'  :
+                v <= 6.3    ? 'rgba(132,204,22,0.6)' :
+                  v <= 12     ? 'rgba(245,158,11,0.6)' :
+                    'rgba(239,68,68,0.6)'
           ),
           borderColor: data.map(v =>
             v === 0     ? '#10b981' :
-            v <= 3      ? '#22c55e' :
-            v <= 6.3    ? '#84cc16' :
-            v <= 12     ? '#f59e0b' :
-                          '#ef4444'
+              v <= 3      ? '#22c55e' :
+                v <= 6.3    ? '#84cc16' :
+                  v <= 12     ? '#f59e0b' :
+                    '#ef4444'
           ),
           borderWidth: 2,
           borderRadius: 6,
@@ -146,7 +146,7 @@ export function renderWeeklyChart(canvasId = 'chart-weekly') {
           callbacks: {
             label: (ctx) => {
               const v = ctx.parsed.y;
-              if (ctx.datasetIndex === 1) return `Paris Target: ${v} kg CO₂`;
+              if (ctx.datasetIndex === 1) {return `Paris Target: ${v} kg CO₂`;}
               return `${v.toFixed(2)} kg CO₂`;
             },
           },
@@ -242,7 +242,7 @@ export function renderTrendChart(canvasId = 'chart-trend', days30 = []) {
           backgroundColor: (ctx) => {
             const chart  = ctx.chart;
             const { chartArea } = chart;
-            if (!chartArea) return 'rgba(16,185,129,0.1)';
+            if (!chartArea) {return 'rgba(16,185,129,0.1)';}
             const grad = chart.ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
             grad.addColorStop(0, 'rgba(16,185,129,0.25)');
             grad.addColorStop(1, 'rgba(16,185,129,0.02)');

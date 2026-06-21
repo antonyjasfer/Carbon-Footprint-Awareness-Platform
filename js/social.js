@@ -81,7 +81,7 @@ export function getTeamLeaderboard() {
   const settings = storage.getSettings();
   const stats    = computeStats();
 
-  let teams = [...SAMPLE_TEAMS.map(t => ({ ...t, isMyTeam: false }))];
+  const teams = [...SAMPLE_TEAMS.map(t => ({ ...t, isMyTeam: false }))];
 
   if (settings.teamId && settings.teamName) {
     // Update or inject user's team
@@ -117,8 +117,8 @@ export function getTeamLeaderboard() {
  * @returns {{ success: boolean, message: string }}
  */
 export function createTeam(teamName) {
-  if (!teamName?.trim()) return { success: false, message: 'Team name cannot be empty.' };
-  if (teamName.trim().length > 40) return { success: false, message: 'Team name is too long (max 40 chars).' };
+  if (!teamName?.trim()) {return { success: false, message: 'Team name cannot be empty.' };}
+  if (teamName.trim().length > 40) {return { success: false, message: 'Team name is too long (max 40 chars).' };}
 
   const id = 'team_' + Date.now();
   storage.saveSettings({ teamId: id, teamName: teamName.trim() });
@@ -133,7 +133,7 @@ export function createTeam(teamName) {
  * @returns {{ success: boolean, message: string }}
  */
 export function joinTeam(teamName) {
-  if (!teamName?.trim()) return { success: false, message: 'Team name cannot be empty.' };
+  if (!teamName?.trim()) {return { success: false, message: 'Team name cannot be empty.' };}
 
   const name    = teamName.trim();
   const existing = SAMPLE_TEAMS.find(
@@ -160,15 +160,15 @@ export function leaveTeam() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function rankMedal(rank) {
-  if (rank === 1) return '🥇';
-  if (rank === 2) return '🥈';
-  if (rank === 3) return '🥉';
+  if (rank === 1) {return '🥇';}
+  if (rank === 2) {return '🥈';}
+  if (rank === 3) {return '🥉';}
   return `#${rank}`;
 }
 
 function scoreBadge(score) {
-  if (score >= 85) return 'badge--green';
-  if (score >= 60) return 'badge--yellow';
+  if (score >= 85) {return 'badge--green';}
+  if (score >= 60) {return 'badge--yellow';}
   return 'badge--red';
 }
 
@@ -178,7 +178,7 @@ function scoreBadge(score) {
  */
 export function renderIndividualLeaderboard(containerId) {
   const container = document.getElementById(containerId);
-  if (!container) return;
+  if (!container) {return;}
 
   const board = getIndividualLeaderboard();
 
@@ -208,7 +208,7 @@ export function renderIndividualLeaderboard(containerId) {
  */
 export function renderTeamLeaderboard(containerId) {
   const container = document.getElementById(containerId);
-  if (!container) return;
+  if (!container) {return;}
 
   const board = getTeamLeaderboard();
 
