@@ -299,9 +299,10 @@ export function renderTrendChart(canvasId = 'chart-trend', days30 = []) {
 
 /**
  * Renders a minimal sparkline for quick stat cards.
- * @param {string} canvasId
- * @param {number[]} data
- * @param {string} [color='#10b981']
+ *
+ * @param {string}   canvasId - target canvas element id
+ * @param {number[]} data     - array of values to plot
+ * @param {string}   [color]  - hex/rgba line colour (default emerald green)
  */
 export function renderSparkline(canvasId, data, color = '#10b981') {
   upsertChart(canvasId, {
@@ -326,4 +327,82 @@ export function renderSparkline(canvasId, data, color = '#10b981') {
       scales: { x: { display: false }, y: { display: false } },
     },
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Carbon Heatmap (GitHub-style contribution graph)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Emission level thresholds (kg CO₂ per day) mapped to heatmap colours.
+ * Uses a traffic-light palette anchored to the Paris Agreement target (6.3 kg).
+ *
+ * @type {Array<{max: number, bg: string, border: string, label: string}>}
+ */
+const HEATMAP_LEVELS = [
+  { max: 0,    bg: '#1e293b',        border: '#334155',        label: 'No data'   },
+  { max: 2,    bg: 'rgba(16,185,129,0.85)',  border: '#10b981', label: '0–2 kg'   },
+  { max: 5,    bg: 'rgba(34,197,94,0.7)',    border: '#22c55e', label: '2–5 kg'   },
+  { max: 8,    bg: 'rgba(132,204,22,0.7)',   border: '#84cc16', label: '5–8 kg'   },
+  { max: 12,   bg: 'rgba(245,158,11,0.75)',  border: '#f59e0b', label: '8–12 kg'  },
+  { max: 20,   bg: 'rgba(249,115,22,0.8)',   border: '#f97316', label: '12–20 kg' },
+  { max: Infinity, bg: 'rgba(239,68,68,0.85)', border: '#ef4444', label: '20+ kg' },
+];
+
+/**
+ * Returns the heatmap colour level for a given daily kg value.
+ *
+ * @param {number} kg - daily CO₂ in kg
+ * @returns {{ bg: string, border: string, label: string }}
+ */
+function heatmapLevel(kg) {
+  if (kg === 0) { return HEATMAP_LEVELS[0]; }
+  return HEATMAP_LEVELS.find(l => kg < l.max) ?? HEATMAP_LEVELS[HEATMAP_LEVELS.length - 1];
+}
+
+/**
+ * Renders a GitHub-style 30-day carbon activity heatmap into a DOM container.
+ *
+ * Each cell represents one day. Colour intensity reflects that day's total
+ * CO₂ output relative to the Paris Agreement target. Cells are fully
+ * keyboard-accessible with title attributes and ARIA labels.
+ *
+ * @param {string}   containerId - id of the target div element
+ * @param {Array<{date: string, kg: number}>} days30 - 30-day daily entries
+ */
+export function renderCarbonHeatmap(containerId, days30 = []) {
+  const container = document.getElementById(containerId);
+  if (!container || days30.length === 0) { return; }
+
+  const cells = days30.map(({ date, kg }) => {
+    const level = heatmapLevel(kg);
+    const dateObj = new Date(date + 'T00:00:00');
+    const label   = dateObj.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
+    const kgStr   = kg > 0 ? `${kg.toFixed(2)} kg CO₂` : 'No data';
+
+    return `<div
+      class="heatmap-cell"
+      style="background:${level.bg};border-color:${level.border};"
+      title="${label}: ${kgStr}"
+      role="gridcell"
+      aria-label="${label}: ${kgStr} — ${level.label}"
+      tabindex="0"
+    ></div>`;
+  }).join('');
+
+  // Legend items (only once, skip level 0 = no data)
+  const legend = HEATMAP_LEVELS.slice(1).map(l =>
+    `<span class="heatmap-legend-cell" style="background:${l.bg};border-color:${l.border};"></span>
+     <span class="heatmap-legend-label">${l.label}</span>`
+  ).join('');
+
+  container.innerHTML = `
+    <div class="heatmap-wrapper" role="grid" aria-label="30-day carbon emissions heatmap">
+      <div class="heatmap-grid">${cells}</div>
+    </div>
+    <div class="heatmap-legend" aria-label="Colour legend for emissions levels">
+      <span class="heatmap-legend-label">Low</span>
+      ${legend}
+      <span class="heatmap-legend-label">High</span>
+    </div>`;
 }

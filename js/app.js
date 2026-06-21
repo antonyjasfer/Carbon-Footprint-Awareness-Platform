@@ -11,7 +11,7 @@ import { storage }    from './storage.js';
 import { EMISSION_FACTORS, CATEGORIES, CHALLENGES, ACHIEVEMENTS, getEquivalence, getEmotionalContext } from './data.js';
 import { submitActivity, previewEmission, computeStats, computeWorldHealth } from './tracker.js';
 import { LivingWorld } from './world.js';
-import { renderWeeklyChart, renderCategoryChart, renderTrendChart } from './charts.js';
+import { renderWeeklyChart, renderCategoryChart, renderTrendChart, renderCarbonHeatmap } from './charts.js';
 import { fetchInsights, renderInsights }     from './insights.js';
 import { renderIndividualLeaderboard, renderTeamLeaderboard, createTeam, joinTeam } from './social.js';
 import { showToast, announce, initSkipLink, initKeyboardShortcuts, registerShortcut, trapFocus, focusFirst } from './accessibility.js';
@@ -134,12 +134,74 @@ function refreshDashboard() {
   // Charts
   renderWeeklyChart('chart-weekly');
   renderCategoryChart('chart-category');
+  renderTrendChart('chart-trend', stats.days30);
+
+  // Carbon heatmap (GitHub-style 30-day grid)
+  renderCarbonHeatmap('carbon-heatmap', stats.days30);
+
+  // Forecast widget
+  renderForecastWidget(stats);
 
   // Recent activities
   renderRecentActivities();
 
   // Achievements preview
   renderAchievements('achievements-preview', 4);
+}
+
+/**
+ * Renders the forecast + budget countdown widget into #forecast-widget.
+ * Shows projected monthly total, trend direction, and days remaining in budget.
+ *
+ * @param {import('./tracker.js').TrackerStats} stats
+ */
+function renderForecastWidget(stats) {
+  const container = document.getElementById('forecast-widget');
+  if (!container) { return; }
+
+  const { forecast, budgetRemaining, budgetDaysLeft, monthlyBudget } = stats;
+  if (!forecast) { return; }
+
+  const STATUS_COLORS = { on_track: '#22c55e', at_risk: '#f59e0b', over_budget: '#ef4444' };
+  const STATUS_LABELS = { on_track: '✅ On Track', at_risk: '⚠️ At Risk', over_budget: '🔴 Over Budget' };
+  const trendArrow    = forecast.improving ? '↘️ Improving' : (forecast.trendSlope > 0.01 ? '↗️ Rising' : '→ Stable');
+  const statusColor   = STATUS_COLORS[forecast.status] ?? '#94a3b8';
+  const statusLabel   = STATUS_LABELS[forecast.status] ?? forecast.status;
+  const dailyBudget   = stats.vsParisTarget;
+  const budgetPct     = Math.min(100, (stats.monthKg / monthlyBudget) * 100);
+
+  container.innerHTML = `
+    <div class="forecast-card" role="region" aria-label="Carbon budget forecast">
+      <div class="forecast-card__header">
+        <span class="forecast-icon" aria-hidden="true">📊</span>
+        <h3 class="forecast-card__title">Monthly Forecast</h3>
+        <span class="forecast-status" style="color:${statusColor}">${statusLabel}</span>
+      </div>
+      <div class="forecast-grid">
+        <div class="forecast-stat">
+          <span class="forecast-stat__value">${formatKg(forecast.projectedMonthlyKg)}</span>
+          <span class="forecast-stat__label">Projected this month</span>
+        </div>
+        <div class="forecast-stat">
+          <span class="forecast-stat__value">${formatKg(budgetRemaining)}</span>
+          <span class="forecast-stat__label">Budget remaining</span>
+        </div>
+        <div class="forecast-stat">
+          <span class="forecast-stat__value">${budgetDaysLeft}d</span>
+          <span class="forecast-stat__label">Days left in month</span>
+        </div>
+        <div class="forecast-stat">
+          <span class="forecast-stat__value" style="color:${forecast.improving ? '#22c55e' : '#f97316'}">${trendArrow}</span>
+          <span class="forecast-stat__label">7-day trend</span>
+        </div>
+      </div>
+      <div class="forecast-budget-bar" role="progressbar"
+           aria-valuenow="${Math.round(budgetPct)}" aria-valuemin="0" aria-valuemax="100"
+           aria-label="${Math.round(budgetPct)}% of monthly budget used">
+        <div class="forecast-budget-bar__fill" style="width:${budgetPct}%;background:${statusColor}"></div>
+      </div>
+      <p class="forecast-budget-label">${Math.round(budgetPct)}% of ${formatKg(monthlyBudget)} monthly budget used</p>
+    </div>`;
 }
 
 function setContextBar(id, actual, target) {
@@ -400,7 +462,6 @@ function refreshSocial() {
         </div>`;
       document.getElementById('btn-leave-team')?.addEventListener('click', () => {
         if (confirm('Leave your team?')) {
-          const { leaveTeam } = /** @type {any} */(window._socialModule ?? {});
           storage.saveSettings({ teamId: null, teamName: null });
           refreshSocial();
           showToast('Left your team', 'info');

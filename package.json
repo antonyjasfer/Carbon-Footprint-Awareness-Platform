@@ -1,0 +1,41 @@
+{
+  "name": "carbon-footprint-awareness-platform",
+  "version": "1.0.0",
+  "description": "A smart, dynamic Carbon Footprint Awareness Platform — tracks, visualises, and reduces personal CO₂ emissions through AI insights, gamification, and social accountability.",
+  "keywords": [
+    "carbon-footprint",
+    "sustainability",
+    "climate-change",
+    "gemini-ai",
+    "green-tech",
+    "ecotrak"
+  ],
+  "author": "EcoTrack",
+  "license": "MIT",
+  "homepage": "https://carbon-footprint-platform.web.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antonyjasfer/Carbon-Footprint-Awareness-Platform.git"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "npx serve . --listen 3000",
+    "dev": "npx serve . --listen 3000 --cors",
+    "lint": "npx eslint js/**/*.js",
+    "deploy": "firebase deploy --only hosting",
+    "test": "echo 'Open index.html → Goals → Run Unit Tests to execute the test suite in-browser'"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "firebase-tools": "^15.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions"
+  ]
+}

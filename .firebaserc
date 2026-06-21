@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "carbon-footprint-platform"
-  }
+    "default": "ecotrack-carbon-platform-952ca"
+  },
+  "targets": {},
+  "etags": {}
 }

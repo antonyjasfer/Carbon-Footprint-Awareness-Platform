@@ -1,0 +1,42 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": ["warn", { "allow": ["warn", "error", "info", "group", "groupEnd", "table", "log"] }],
+    "eqeqeq": ["error", "always"],
+    "curly": "error",
+    "no-var": "error",
+    "prefer-const": "warn",
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-script-url": "error",
+    "no-alert": "warn",
+    "semi": ["error", "always"],
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "indent": ["warn", 2, { "SwitchCase": 1 }],
+    "max-len": ["warn", { "code": 120, "ignoreComments": true, "ignoreTemplateLiterals": true }],
+    "max-lines-per-function": ["warn", { "max": 80, "skipBlankLines": true, "skipComments": true }],
+    "complexity": ["warn", 12],
+    "consistent-return": "warn",
+    "default-case": "warn",
+    "no-duplicate-case": "error",
+    "no-unreachable": "error",
+    "no-undef": "error",
+    "valid-typeof": "error",
+    "jsdoc/require-jsdoc": "off"
+  },
+  "plugins": [],
+  "ignorePatterns": [
+    "node_modules/",
+    ".firebase/",
+    "*.min.js"
+  ]
+}
