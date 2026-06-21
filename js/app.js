@@ -8,10 +8,16 @@
  */
 
 import { storage }    from './storage.js';
-import { EMISSION_FACTORS, CHALLENGES, ACHIEVEMENTS } from './data.js';
+import { EMISSION_FACTORS, CHALLENGES, ACHIEVEMENTS, PARIS_TARGET_DAILY, GLOBAL_AVG_DAILY_KG, HERO_TARGET_DAILY } from './data.js';
 import { submitActivity, previewEmission, computeStats, computeWorldHealth } from './tracker.js';
 import { LivingWorld } from './world.js';
 import { renderWeeklyChart, renderCategoryChart, renderTrendChart, renderCarbonHeatmap } from './charts.js';
+
+const MAX_RECENT_ACTIVITIES = 10;
+const DELETE_TOAST_DURATION = 2000;
+const SUCCESS_TOAST_DURATION = 5000;
+const ACHIEVEMENT_TOAST_DELAY = 1000;
+const ACHIEVEMENT_TOAST_DURATION = 6000;
 import { fetchInsights, renderInsights }     from './insights.js';
 import { renderIndividualLeaderboard, renderTeamLeaderboard, createTeam, joinTeam } from './social.js';
 import { showToast, announce, initSkipLink, initKeyboardShortcuts, registerShortcut, trapFocus, focusFirst } from './accessibility.js';
@@ -30,6 +36,10 @@ const state = {
 // Navigation
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Navigates to a specific section of the SPA.
+ * @param {string} sectionId - The ID of the section to navigate to
+ */
 function navigateTo(sectionId) {
   if (state.currentSection === sectionId) {return;}
 
@@ -59,6 +69,10 @@ function navigateTo(sectionId) {
   onSectionEnter(sectionId);
 }
 
+/**
+ * Handles initialization logic when entering a section.
+ * @param {string} sectionId - The ID of the section being entered
+ */
 function onSectionEnter(sectionId) {
   switch (sectionId) {
     case 'dashboard':
@@ -95,11 +109,15 @@ function onSectionEnter(sectionId) {
 // Dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Refreshes the dashboard with the latest statistics and charts.
+ */
 function refreshDashboard() {
-  const stats = computeStats();
-  const health = computeWorldHealth(stats.avgDailyKg);
+  try {
+    const stats = computeStats();
+    const health = computeWorldHealth(stats.avgDailyKg);
 
-  // Update Living World
+    // Update Living World
   if (state.livingWorld) {state.livingWorld.setHealth(health);}
 
   // Update world info panel
@@ -127,10 +145,10 @@ function refreshDashboard() {
   // Health percentage
   setText('world-health-pct', `${health}%`);
 
-  // vs benchmarks
-  setContextBar('bar-vs-paris',  stats.todayKg, 6.3);
-  setContextBar('bar-vs-global', stats.todayKg, 12.0);
-  setContextBar('bar-vs-hero',   stats.todayKg, 3.0);
+    // vs benchmarks
+    setContextBar('bar-vs-paris',  stats.todayKg, PARIS_TARGET_DAILY);
+    setContextBar('bar-vs-global', stats.todayKg, GLOBAL_AVG_DAILY_KG);
+    setContextBar('bar-vs-hero',   stats.todayKg, HERO_TARGET_DAILY);
 
   // Charts
   renderWeeklyChart('chart-weekly');
@@ -146,8 +164,12 @@ function refreshDashboard() {
   // Recent activities
   renderRecentActivities();
 
-  // Achievements preview
-  renderAchievements('achievements-preview', 4);
+    // Achievements preview
+    renderAchievements('achievements-preview', 4);
+  } catch (error) {
+    console.error('Failed to refresh dashboard:', error);
+    showToast('Failed to load dashboard data.', 'error');
+  }
 }
 
 /**
@@ -227,11 +249,14 @@ function setText(id, text) {
 // Recent activity list
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Renders the list of recent activities on the dashboard.
+ */
 function renderRecentActivities() {
   const container = document.getElementById('recent-activities');
   if (!container) {return;}
 
-  const activities = storage.getTodayActivities().slice(0, 10);
+  const activities = storage.getTodayActivities().slice(0, MAX_RECENT_ACTIVITIES);
 
   if (activities.length === 0) {
     container.innerHTML = `
@@ -264,13 +289,20 @@ function renderRecentActivities() {
     btn.addEventListener('click', () => {
       storage.deleteActivity(btn.dataset.id);
       refreshDashboard();
-      showToast('Activity deleted', 'info', 2000);
+      showToast('Activity deleted', 'info', DELETE_TOAST_DURATION);
     });
   });
 }
 
+/**
+ * Formats an ISO timestamp into a relative time string.
+ * @param {string} isoTimestamp - The ISO 8601 timestamp string
+ * @returns {string} The formatted relative time
+ */
 function formatRelativeTime(isoTimestamp) {
-  const diff = Date.now() - new Date(isoTimestamp).getTime();
+  const date = new Date(isoTimestamp);
+  if (isNaN(date.getTime())) { return 'unknown time'; }
+  const diff = Date.now() - date.getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1)  {return 'just now';}
   if (mins < 60) {return `${mins}m ago`;}
@@ -341,6 +373,10 @@ function updateLivePreview() {
   }
 }
 
+/**
+ * Handles the submission of a new activity log.
+ * @param {Event} e - The form submit event
+ */
 async function handleLogSubmit(e) {
   e.preventDefault();
   const category = document.getElementById('log-category')?.value;
@@ -365,11 +401,11 @@ async function handleLogSubmit(e) {
     const msg  = result.kgCO2 === 0
       ? `${icon} Logged! Zero emissions — excellent choice! 🌿`
       : `${icon} Logged ${result.kgCO2.toFixed(2)} kg CO₂ — ${result.stats.equivalence}`;
-    showToast(msg, result.kgCO2 <= 3 ? 'success' : 'info', 5000);
+    showToast(msg, result.kgCO2 <= 3 ? 'success' : 'info', SUCCESS_TOAST_DURATION);
 
     // New achievements
     for (const ach of result.newAchievements) {
-      setTimeout(() => showToast(`🏅 Achievement unlocked: ${ach.title}!`, 'success', 6000), 1000);
+      setTimeout(() => showToast(`🏅 Achievement unlocked: ${ach.title}!`, 'success', ACHIEVEMENT_TOAST_DURATION), ACHIEVEMENT_TOAST_DELAY);
     }
 
     // Show nudge in a persistent area if applicable
@@ -416,6 +452,10 @@ function showNudgeModal(nudge) {
 // Insights
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Loads insights using the Gemini API or static fallback.
+ * @param {string} [apiKeyOverride] - Optional API key
+ */
 async function loadInsights(apiKeyOverride) {
   if (state.insightsLoading) {return;}
   state.insightsLoading = true;
@@ -443,6 +483,9 @@ async function loadInsights(apiKeyOverride) {
 // Social
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Refreshes the social section including individual and team leaderboards.
+ */
 function refreshSocial() {
   renderIndividualLeaderboard('individual-leaderboard');
   renderTeamLeaderboard('team-leaderboard');
@@ -494,6 +537,9 @@ function handleJoinTeam(e) {
 // Goals & Challenges
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Refreshes the goals and challenges section.
+ */
 function refreshGoals() {
   renderGoalsSection();
   renderAchievements('achievements-full', 999);
@@ -747,7 +793,10 @@ function wireEvents() {
     if (panel) {
       panel.hidden = !panel.hidden;
       if (!panel.hidden) {
-        import('./tests.js').then(m => m.renderTestResults('test-results'));
+        import('./tests.js').then(m => m.renderTestResults('test-results')).catch(err => {
+          console.error('Failed to load tests.js:', err);
+          showToast('Failed to load tests.js', 'error');
+        });
       }
     }
   });
@@ -778,6 +827,9 @@ function wireEvents() {
 // Bootstrap
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Initializes the application.
+ */
 function init() {
   // Init a11y
   initSkipLink();

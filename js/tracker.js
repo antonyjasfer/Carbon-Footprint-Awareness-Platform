@@ -273,7 +273,7 @@ export function computeStats() {
 
   // Build a complete 30-day daily map (fills missing days with 0)
   const dailyMap = groupByDate(month);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = dateKey(new Date().toISOString());
 
   /** @type {DailyEntry[]} */
   const days30 = [];
@@ -328,12 +328,13 @@ export function computeStats() {
 
   // Budget calculations
   const settings        = storage.getSettings();
-  const monthlyBudget   = (settings.dailyTarget ?? PARIS_TARGET_DAILY) * 30;
+  const now           = new Date();
+  const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthlyBudget   = (settings.dailyTarget ?? PARIS_TARGET_DAILY) * daysInCurrentMonth;
   const forecast        = computeForecast(days30, monthlyBudget);
   const budgetRemaining = Math.max(0, parseFloat((monthlyBudget - monthKg).toFixed(3)));
 
-  const now           = new Date();
-  const budgetDaysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+  const budgetDaysLeft = daysInCurrentMonth - now.getDate();
 
   return {
     todayKg:          parseFloat(todayKg.toFixed(3)),
@@ -377,10 +378,13 @@ export function computeStats() {
  * @param {number} avgDailyKg - 30-day average daily CO₂ emissions
  * @returns {number} integer health score in range [0, 100]
  */
+const MAX_KG_FLOOR_HEALTH = 25;
+const HEALTH_DECAY_RATE = 0.095;
+
 export function computeWorldHealth(avgDailyKg) {
   if (!Number.isFinite(avgDailyKg) || avgDailyKg <= 0) { return 100; }
-  if (avgDailyKg >= 25) { return 0; }
-  const raw = 100 * Math.exp(-0.095 * avgDailyKg);
+  if (avgDailyKg >= MAX_KG_FLOOR_HEALTH) { return 0; }
+  const raw = 100 * Math.exp(-HEALTH_DECAY_RATE * avgDailyKg);
   return Math.max(0, Math.min(100, Math.round(raw)));
 }
 

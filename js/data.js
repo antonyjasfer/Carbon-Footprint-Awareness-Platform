@@ -12,9 +12,43 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Named constants (magic-number replacements)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** @type {number} Seed used to deterministically pick an equivalence string. */
+const EQUIVALENCE_HASH_SEED = 7;
+
+/** @type {number} Floor factor to avoid division by zero when comparing transport alternatives. */
+const MIN_ALT_FACTOR = 0.001;
+
+// --- Emotional-context tier thresholds (daily kg CO₂e) ---
+
+/** @type {number} Upper bound (exclusive) for the "hero" tier. */
+const TIER_HERO_MAX = 2;
+
+/** @type {number} Upper bound (exclusive) for the "good" tier. */
+const TIER_GOOD_MAX = 5;
+
+/** @type {number} Upper bound (exclusive) for the "average" tier. */
+const TIER_AVERAGE_MAX = 8;
+
+/** @type {number} Upper bound (exclusive) for the "warn" tier. */
+const TIER_WARN_MAX = 12;
+
+/** @type {number} Upper bound (exclusive) for the "high" tier. */
+const TIER_HIGH_MAX = 20;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Emission Factors (kg CO₂e per unit)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Emission factors organised by category → activity type.
+ * Each entry specifies a per-unit CO₂e factor, display label, icon, and colour.
+ *
+ * @type {Object.<string, Object.<string, {factor: number, unit: string, label: string, icon: string, color: string, servingKg?: number|null}>>}
+ */
+/** @type {Object.<string, Object.<string, {factor: number, unit: string, label: string, icon: string, color: string, servingKg?: number}>>} */
 export const EMISSION_FACTORS = {
   transport: {
     car_petrol:   { factor: 0.21,  unit: 'km',      label: 'Car (Petrol)',   icon: '🚗', color: '#ef4444' },
@@ -73,6 +107,8 @@ export const EMISSION_FACTORS = {
 // Human-readable CO₂ Equivalences (per kg CO₂e)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** @type {Array<{multiplier: number, unit: string, text: string, icon: string}>} */
+/** @type {Array<{multiplier: number, unit: string, text: string, icon: string}>} */
 export const EQUIVALENCES = [
   { multiplier: 122,  unit: 'smartphones', text: 'smartphone charges', icon: '📱' },
   { multiplier: 4.7,  unit: 'km',          text: 'km driven by average car', icon: '🚗' },
@@ -89,32 +125,36 @@ export const EQUIVALENCES = [
  * @returns {string} - readable string e.g. "charging 122 smartphones"
  */
 export function getEquivalence(kgCO2) {
-  if (kgCO2 <= 0) {return 'zero emissions — perfect! 🌿';}
+  if (typeof kgCO2 !== 'number' || isNaN(kgCO2) || kgCO2 <= 0) {return 'zero emissions — perfect! 🌿';}
   // Pick a contextually interesting equivalence
-  const eq = EQUIVALENCES[Math.floor(kgCO2 * 7) % EQUIVALENCES.length];
+  const eq = EQUIVALENCES[Math.floor(kgCO2 * EQUIVALENCE_HASH_SEED) % EQUIVALENCES.length];
   const value = (kgCO2 * eq.multiplier).toFixed(1);
   return `${value} ${eq.text} ${eq.icon}`;
 }
 
 /**
  * Returns the emotional context message for a daily total.
+ * Non-finite inputs are treated as zero (carbon-free).
+ *
  * @param {number} kgCO2 - daily kg CO₂e
- * @returns {{ label: string, color: string, emoji: string }}
+ * @returns {{ label: string, color: string, emoji: string, tier: string }}
  */
 export function getEmotionalContext(kgCO2) {
-  if (kgCO2 === 0)  {return { label: 'Carbon-free day!',     color: '#06b6d4', emoji: '🌊', tier: 'hero'    };}
-  if (kgCO2 < 2)   {return { label: 'Outstanding',           color: '#10b981', emoji: '🌟', tier: 'hero'    };}
-  if (kgCO2 < 5)   {return { label: 'Great',                 color: '#22c55e', emoji: '😊', tier: 'good'    };}
-  if (kgCO2 < 8)   {return { label: 'Average',               color: '#84cc16', emoji: '😐', tier: 'average' };}
-  if (kgCO2 < 12)  {return { label: 'Above average',         color: '#f59e0b', emoji: '😟', tier: 'warn'    };}
-  if (kgCO2 < 20)  {return { label: 'High impact',           color: '#f97316', emoji: '⚠️', tier: 'high'    };}
-  return               { label: 'Very high impact',      color: '#ef4444', emoji: '🔥', tier: 'critical' };
+  const safe = Number.isFinite(kgCO2) ? kgCO2 : 0;
+  if (safe === 0)              {return { label: 'Carbon-free day!',     color: '#06b6d4', emoji: '🌊', tier: 'hero'    };}
+  if (safe < TIER_HERO_MAX)    {return { label: 'Outstanding',           color: '#10b981', emoji: '🌟', tier: 'hero'    };}
+  if (safe < TIER_GOOD_MAX)    {return { label: 'Great',                 color: '#22c55e', emoji: '😊', tier: 'good'    };}
+  if (safe < TIER_AVERAGE_MAX) {return { label: 'Average',               color: '#84cc16', emoji: '😐', tier: 'average' };}
+  if (safe < TIER_WARN_MAX)    {return { label: 'Above average',         color: '#f59e0b', emoji: '😟', tier: 'warn'    };}
+  if (safe < TIER_HIGH_MAX)    {return { label: 'High impact',           color: '#f97316', emoji: '⚠️', tier: 'high'    };}
+  return                        { label: 'Very high impact',      color: '#ef4444', emoji: '🔥', tier: 'critical' };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Comparison Nudge Messages
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** @type {Object.<string, string[]>} Maps high-emission transport modes to greener alternatives. */
 export const TRANSPORT_ALTERNATIVES = {
   car_petrol:  ['metro', 'bus', 'bicycle', 'walking'],
   car_diesel:  ['metro', 'bus', 'bicycle', 'walking'],
@@ -125,11 +165,14 @@ export const TRANSPORT_ALTERNATIVES = {
 
 /**
  * Generates a nudge comparing chosen transport to a greener alternative.
+ * Returns null when no nudge applies or when distanceKm is not a finite number.
+ *
  * @param {string} chosenMode - key in EMISSION_FACTORS.transport
- * @param {number} distanceKm
- * @returns {{ message: string, savings: number } | null}
+ * @param {number} distanceKm - trip distance in kilometres (must be finite and positive)
+ * @returns {{ message: string, savings: number, alternative: string, altLabel: string, ratio: number } | null}
  */
 export function getTransportNudge(chosenMode, distanceKm) {
+  if (typeof distanceKm !== 'number' || isNaN(distanceKm)) {return null;}
   const alternatives = TRANSPORT_ALTERNATIVES[chosenMode];
   if (!alternatives || distanceKm <= 0) {return null;}
 
@@ -141,7 +184,7 @@ export function getTransportNudge(chosenMode, distanceKm) {
   const savings = (chosenFactor - altFactor) * distanceKm;
   if (savings <= 0) {return null;}
 
-  const ratio = chosenFactor > 0 ? (chosenFactor / Math.max(altFactor, 0.001)).toFixed(1) : 1;
+  const ratio = chosenFactor > 0 ? (chosenFactor / Math.max(altFactor, MIN_ALT_FACTOR)).toFixed(1) : 1;
 
   return {
     message: `Switching to ${altLabel} for this ${distanceKm} km trip saves ${savings.toFixed(2)} kg CO₂ (${ratio}× cleaner)`,
@@ -156,6 +199,9 @@ export function getTransportNudge(chosenMode, distanceKm) {
 // Achievements / Badges
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * @type {Array<{id: string, icon: string, title: string, description: string, condition: function, rarity: string}>}
+ */
 export const ACHIEVEMENTS = [
   {
     id: 'first_log',
@@ -243,6 +289,9 @@ export const ACHIEVEMENTS = [
 // Weekly Challenges
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * @type {Array<{id: string, icon: string, title: string, description: string, target: number, unit: string, category: string, reward: string, co2Saving: number}>}
+ */
 export const CHALLENGES = [
   {
     id: 'no_meat_week',
@@ -316,6 +365,7 @@ export const CHALLENGES = [
 // Sample social / leaderboard seed data
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** @type {Array<{id: string, name: string, avatar: string, members: number, weeklyKg: number, score: number}>} */
 export const SAMPLE_TEAMS = [
   { id: 'hostel_a', name: 'Hostel A', avatar: '🏠', members: 12, weeklyKg: 340, score: 82 },
   { id: 'hostel_b', name: 'Hostel B', avatar: '🏡', members: 15, weeklyKg: 410, score: 74 },
@@ -324,6 +374,7 @@ export const SAMPLE_TEAMS = [
   { id: 'mba_batch', name: 'MBA Batch 2026', avatar: '📚', members: 20, weeklyKg: 590, score: 67 },
 ];
 
+/** @type {Array<{id: string, name: string, avatar: string, weeklyKg: number, streak: number, score: number, team: string}>} */
 export const SAMPLE_INDIVIDUALS = [
   { id: 'usr_1', name: 'Aarav S.', avatar: '👨‍💻', weeklyKg: 18.2, streak: 14, score: 94, team: 'design_dept' },
   { id: 'usr_2', name: 'Priya M.', avatar: '👩‍🎓', weeklyKg: 21.4, streak: 9,  score: 91, team: 'hostel_a'   },
@@ -336,15 +387,21 @@ export const SAMPLE_INDIVIDUALS = [
 // Global average daily carbon footprint (kg CO₂e) — for context
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** @type {number} */
 export const GLOBAL_AVG_DAILY_KG = 12.0;  // World average
+/** @type {number} */
 export const INDIA_AVG_DAILY_KG  = 5.0;   // India average
+/** @type {number} */
 export const PARIS_TARGET_DAILY  = 6.3;   // Paris Agreement 2030 target
+/** @type {number} */
 export const HERO_TARGET_DAILY   = 3.0;   // Our platform "hero" target
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Category metadata
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** @type {Object.<string, {label: string, icon: string, color: string}>} */
+/** @type {Object.<string, {label: string, icon: string, color: string}>} */
 export const CATEGORIES = {
   transport: { label: 'Transport',  icon: '🚗', color: '#ef4444' },
   food:      { label: 'Food',       icon: '🍔', color: '#f59e0b' },

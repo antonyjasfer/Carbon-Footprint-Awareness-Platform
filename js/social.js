@@ -10,6 +10,30 @@ import { SAMPLE_TEAMS, SAMPLE_INDIVIDUALS } from './data.js';
 import { computeStats } from './tracker.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MAX_EMISSION_BENCHMARK = 20;
+const STREAK_BONUS_MULTIPLIER = 0.5;
+const MAX_STREAK_BONUS = 10;
+const TEAM_IMPROVEMENT_FACTOR = 0.3;
+const MAX_TEAM_NAME_LENGTH = 40;
+
+/**
+ * Escapes HTML characters in a string to prevent XSS.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHTML(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Score computation
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -21,8 +45,8 @@ import { computeStats } from './tracker.js';
  * @returns {number} 0–100
  */
 function computeScore(avgDailyKg, streak) {
-  const emissionScore = Math.max(0, 100 - (avgDailyKg / 20) * 100);
-  const streakBonus   = Math.min(streak * 0.5, 10); // max +10
+  const emissionScore = Math.max(0, 100 - (avgDailyKg / MAX_EMISSION_BENCHMARK) * 100);
+  const streakBonus   = Math.min(streak * STREAK_BONUS_MULTIPLIER, MAX_STREAK_BONUS);
   return Math.min(100, parseFloat((emissionScore + streakBonus).toFixed(1)));
 }
 
@@ -35,29 +59,34 @@ function computeScore(avgDailyKg, streak) {
  * @returns {{ rank: number, name: string, avatar: string, weeklyKg: number, streak: number, score: number, isMe: boolean }[]}
  */
 export function getIndividualLeaderboard() {
-  const stats    = computeStats();
-  const user     = storage.getUser();
-  const settings = storage.getSettings();
+  try {
+    const stats    = computeStats();
+    const user     = storage.getUser();
+    const settings = storage.getSettings();
 
-  const meEntry = {
-    id:       'me',
-    name:     user.name ?? 'You',
-    avatar:   user.avatar ?? '🌍',
-    weeklyKg: parseFloat(stats.weekKg.toFixed(1)),
-    streak:   stats.currentStreak,
-    score:    computeScore(stats.avgDailyKg, stats.currentStreak),
-    team:     settings.teamName ?? 'No team',
-    isMe:     true,
-  };
+    const meEntry = {
+      id:       'me',
+      name:     user.name ?? 'You',
+      avatar:   user.avatar ?? '🌍',
+      weeklyKg: parseFloat(stats.weekKg.toFixed(1)),
+      streak:   stats.currentStreak,
+      score:    computeScore(stats.avgDailyKg, stats.currentStreak),
+      team:     settings.teamName ?? 'No team',
+      isMe:     true,
+    };
 
-  // Merge with sample individuals (exclude same team-name collision)
-  const allEntries = [meEntry, ...SAMPLE_INDIVIDUALS.map(u => ({ ...u, isMe: false }))];
+    // Merge with sample individuals (exclude same team-name collision)
+    const allEntries = [meEntry, ...SAMPLE_INDIVIDUALS.map(u => ({ ...u, isMe: false }))];
 
-  // Sort by score descending
-  allEntries.sort((a, b) => b.score - a.score);
+    // Sort by score descending
+    allEntries.sort((a, b) => b.score - a.score);
 
-  // Assign ranks
-  return allEntries.map((u, i) => ({ ...u, rank: i + 1 }));
+    // Assign ranks
+    return allEntries.map((u, i) => ({ ...u, rank: i + 1 }));
+  } catch (error) {
+    console.error('Failed to compute individual leaderboard', error);
+    return [];
+  }
 }
 
 /**
@@ -66,7 +95,7 @@ export function getIndividualLeaderboard() {
  */
 export function getMyRank() {
   const board = getIndividualLeaderboard();
-  return board.find(u => u.isMe)?.rank ?? '—';
+  return board.find(u => u.isMe)?.rank ?? -1;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,33 +107,38 @@ export function getMyRank() {
  * @returns {{ rank: number, id: string, name: string, avatar: string, members: number, weeklyKg: number, score: number, isMyTeam: boolean }[]}
  */
 export function getTeamLeaderboard() {
-  const settings = storage.getSettings();
-  const stats    = computeStats();
+  try {
+    const settings = storage.getSettings();
+    const stats    = computeStats();
 
-  const teams = [...SAMPLE_TEAMS.map(t => ({ ...t, isMyTeam: false }))];
+    const teams = [...SAMPLE_TEAMS.map(t => ({ ...t, isMyTeam: false }))];
 
-  if (settings.teamId && settings.teamName) {
-    // Update or inject user's team
-    const existing = teams.find(t => t.id === settings.teamId);
-    if (existing) {
-      existing.isMyTeam = true;
-      // Slightly improve team score if user is doing well
-      existing.score = Math.min(100, existing.score + stats.currentStreak * 0.3);
-    } else {
-      teams.push({
-        id:      settings.teamId,
-        name:    settings.teamName,
-        avatar:  '⭐',
-        members: 1,
-        weeklyKg: parseFloat(stats.weekKg.toFixed(1)),
-        score:   computeScore(stats.avgDailyKg, stats.currentStreak),
-        isMyTeam: true,
-      });
+    if (settings.teamId && settings.teamName) {
+      // Update or inject user's team
+      const existing = teams.find(t => t.id === settings.teamId);
+      if (existing) {
+        existing.isMyTeam = true;
+        // Slightly improve team score if user is doing well
+        existing.score = Math.min(100, existing.score + stats.currentStreak * TEAM_IMPROVEMENT_FACTOR);
+      } else {
+        teams.push({
+          id:      settings.teamId,
+          name:    settings.teamName,
+          avatar:  '⭐',
+          members: 1,
+          weeklyKg: parseFloat(stats.weekKg.toFixed(1)),
+          score:   computeScore(stats.avgDailyKg, stats.currentStreak),
+          isMyTeam: true,
+        });
+      }
     }
-  }
 
-  teams.sort((a, b) => b.score - a.score);
-  return teams.map((t, i) => ({ ...t, rank: i + 1 }));
+    teams.sort((a, b) => b.score - a.score);
+    return teams.map((t, i) => ({ ...t, rank: i + 1 }));
+  } catch (error) {
+    console.error('Failed to compute team leaderboard', error);
+    return [];
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,7 +152,7 @@ export function getTeamLeaderboard() {
  */
 export function createTeam(teamName) {
   if (!teamName?.trim()) {return { success: false, message: 'Team name cannot be empty.' };}
-  if (teamName.trim().length > 40) {return { success: false, message: 'Team name is too long (max 40 chars).' };}
+  if (teamName.trim().length > MAX_TEAM_NAME_LENGTH) {return { success: false, message: `Team name is too long (max ${MAX_TEAM_NAME_LENGTH} chars).` };}
 
   const id = 'team_' + Date.now();
   storage.saveSettings({ teamId: id, teamName: teamName.trim() });
@@ -159,6 +193,11 @@ export function leaveTeam() {
 // Render helpers (DOM)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Returns a medal emoji for top 3 ranks, or a formatted rank string.
+ * @param {number} rank
+ * @returns {string}
+ */
 function rankMedal(rank) {
   if (rank === 1) {return '🥇';}
   if (rank === 2) {return '🥈';}
@@ -166,6 +205,11 @@ function rankMedal(rank) {
   return `#${rank}`;
 }
 
+/**
+ * Returns the CSS class for a score badge based on score thresholds.
+ * @param {number} score
+ * @returns {string}
+ */
 function scoreBadge(score) {
   if (score >= 85) {return 'badge--green';}
   if (score >= 60) {return 'badge--yellow';}
@@ -184,12 +228,12 @@ export function renderIndividualLeaderboard(containerId) {
 
   container.innerHTML = board.map(u => `
     <div class="leaderboard-row ${u.isMe ? 'leaderboard-row--me' : ''}" 
-         role="row" aria-label="${u.name}, rank ${u.rank}">
+         role="row" aria-label="${escapeHTML(u.name)}, rank ${u.rank}">
       <span class="lb-rank" aria-label="Rank">${rankMedal(u.rank)}</span>
-      <span class="lb-avatar" aria-hidden="true">${u.avatar}</span>
+      <span class="lb-avatar" aria-hidden="true">${escapeHTML(u.avatar)}</span>
       <span class="lb-info">
-        <span class="lb-name">${u.name}${u.isMe ? ' <span class="you-tag">You</span>' : ''}</span>
-        <span class="lb-team">${u.team ?? ''}</span>
+        <span class="lb-name">${escapeHTML(u.name)}${u.isMe ? ' <span class="you-tag">You</span>' : ''}</span>
+        <span class="lb-team">${escapeHTML(u.team ?? '')}</span>
       </span>
       <span class="lb-stats">
         <span class="lb-kg">${u.weeklyKg} kg</span>
@@ -214,11 +258,11 @@ export function renderTeamLeaderboard(containerId) {
 
   container.innerHTML = board.map(t => `
     <div class="leaderboard-row ${t.isMyTeam ? 'leaderboard-row--me' : ''}"
-         role="row" aria-label="${t.name}, rank ${t.rank}">
+         role="row" aria-label="${escapeHTML(t.name)}, rank ${t.rank}">
       <span class="lb-rank" aria-label="Rank">${rankMedal(t.rank)}</span>
-      <span class="lb-avatar" aria-hidden="true">${t.avatar}</span>
+      <span class="lb-avatar" aria-hidden="true">${escapeHTML(t.avatar)}</span>
       <span class="lb-info">
-        <span class="lb-name">${t.name}${t.isMyTeam ? ' <span class="you-tag">Your Team</span>' : ''}</span>
+        <span class="lb-name">${escapeHTML(t.name)}${t.isMyTeam ? ' <span class="you-tag">Your Team</span>' : ''}</span>
         <span class="lb-team">${t.members} members</span>
       </span>
       <span class="lb-stats">

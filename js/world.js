@@ -47,10 +47,25 @@ const RIVER_POLLUTED    = { r: 85,  g: 65,  b: 35  };
 const TREE_CLEAN        = { r: 30,  g: 130, b: 40  };
 const TREE_POLLUTED     = { r: 90,  g: 80,  b: 35  };
 
+const CLOUD_COUNT = 7;
+const BIRD_COUNT = 6;
+const SMOKE_PARTICLE_COUNT = 12;
+const SMOKE_STACK_COUNT = 3;
+const TIME_DELTA = 0.008;
+const HEALTH_LERP_SPEED = 0.018;
+const BIRD_VISIBILITY_THRESHOLD = 40;
+const HUD_BAR_WIDTH = 180;
+const HUD_FONT_SIZE = 10;
+const TREE_COUNT_START = 1;
+const TREE_COUNT_END = 8;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // LivingWorld class
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Manages the animated canvas environment representing the world's health.
+ */
 export class LivingWorld {
   /**
    * @param {string} canvasId - id of <canvas> element
@@ -95,10 +110,18 @@ export class LivingWorld {
     this.frame = null;
   }
 
+  /** Cleans up resources. */
+  destroy() {
+    this.stop();
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+    }
+  }
+
   // ── Init helpers ─────────────────────────────────────────────────────────
 
   _initClouds() {
-    return Array.from({ length: 7 }, (_, i) => ({
+    return Array.from({ length: CLOUD_COUNT }, (_, i) => ({
       x:     (i * 180 + Math.random() * 100) % 1400,
       y:     20 + Math.random() * 80,
       w:     90 + Math.random() * 80,
@@ -108,7 +131,7 @@ export class LivingWorld {
   }
 
   _initBirds() {
-    return Array.from({ length: 6 }, (_, i) => ({
+    return Array.from({ length: BIRD_COUNT }, (_, i) => ({
       x:     100 + i * 180 + Math.random() * 60,
       y:     60  + Math.random() * 80,
       speed: 0.6 + Math.random() * 0.4,
@@ -118,8 +141,8 @@ export class LivingWorld {
 
   _initSmoke() {
     // Three smoke stacks
-    return Array.from({ length: 12 }, (_, i) => ({
-      stack: i % 3,
+    return Array.from({ length: SMOKE_PARTICLE_COUNT }, (_, i) => ({
+      stack: i % SMOKE_STACK_COUNT,
       x:     0,
       y:     0,
       vy:    -(0.4 + Math.random() * 0.4),
@@ -134,8 +157,8 @@ export class LivingWorld {
 
   _update() {
     if (!prefersReducedMotion) {
-      this.time   += 0.008;
-      this.health += (this.target - this.health) * 0.018; // smooth chase
+      this.time   += TIME_DELTA;
+      this.health += (this.target - this.health) * HEALTH_LERP_SPEED; // smooth chase
     } else {
       this.health = this.target;
     }
@@ -160,7 +183,7 @@ export class LivingWorld {
     // Animate smoke particles
     if (pollution > 0.4) {
       for (const p of this.smoke) {
-        p.life += 0.008;
+        p.life += TIME_DELTA;
         if (p.life >= 1) {
           p.life = 0;
           // Reset to stack position
@@ -199,7 +222,7 @@ export class LivingWorld {
     this._drawCity(w, h, t);
     this._drawSmoke(w, h, t);
     this._drawTrees(w, h, t, time);
-    if (health > 40) {this._drawBirds(w, h, t);}
+    if (health > BIRD_VISIBILITY_THRESHOLD) {this._drawBirds(w, h, t);}
     this._drawHUD(w, h);
   }
 
@@ -401,7 +424,7 @@ export class LivingWorld {
   _drawTrees(w, h, t, time) {
     const ctx = this.ctx;
     const groundY = h * 0.56;
-    const treeCount = Math.round(lerp(1, 8, 1 - t)); // 1 dead tree → 8 lush trees
+    const treeCount = Math.round(lerp(TREE_COUNT_START, TREE_COUNT_END, 1 - t)); // 1 dead tree → 8 lush trees
 
     const positions = [
       w * 0.04, w * 0.12, w * 0.20, w * 0.45, w * 0.50,
@@ -466,7 +489,7 @@ export class LivingWorld {
 
   _drawBirds(_w, _h, _t) {
     const ctx = this.ctx;
-    const alpha = Math.max(0, (this.health - 40) / 60);
+    const alpha = Math.max(0, (this.health - BIRD_VISIBILITY_THRESHOLD) / (100 - BIRD_VISIBILITY_THRESHOLD));
     ctx.strokeStyle = `rgba(30,30,30,${alpha * 0.7})`;
     ctx.lineWidth = 1.5;
 
@@ -484,7 +507,7 @@ export class LivingWorld {
     const score = Math.round(this.health);
 
     // Health bar
-    const barW = Math.min(180, w * 0.25);
+    const barW = Math.min(HUD_BAR_WIDTH, w * 0.25);
     const barH = 6;
     const barX = w - barW - 16;
     const barY = 12;
@@ -506,7 +529,7 @@ export class LivingWorld {
 
     // Label
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = `bold ${Math.max(10, w * 0.012)}px Inter, sans-serif`;
+    ctx.font = `bold ${Math.max(HUD_FONT_SIZE, w * 0.012)}px Inter, sans-serif`;
     ctx.textAlign = 'left';
     ctx.fillText(`🌍 Planet Health: ${score}%`, barX, barY + barH + 14);
   }

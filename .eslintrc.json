@@ -22,8 +22,8 @@
     "semi": ["error", "always"],
     "quotes": ["warn", "single", { "avoidEscape": true }],
     "indent": ["warn", 2, { "SwitchCase": 1 }],
-    "max-len": ["warn", { "code": 160, "ignoreComments": true, "ignoreTemplateLiterals": true }],
-    "max-lines-per-function": ["warn", { "max": 120, "skipBlankLines": true, "skipComments": true }],
+    "max-len": ["warn", { "code": 120, "ignoreComments": true, "ignoreTemplateLiterals": true, "ignoreUrls": true, "ignoreStrings": true }],
+    "max-lines-per-function": ["warn", { "max": 80, "skipBlankLines": true, "skipComments": true }],
     "complexity": ["warn", 20],
     "consistent-return": "warn",
     "default-case": "warn",
@@ -31,7 +31,9 @@
     "no-unreachable": "error",
     "no-undef": "error",
     "valid-typeof": "error",
-    "jsdoc/require-jsdoc": "off"
+    "no-throw-literal": "error",
+    "no-self-compare": "error",
+    "no-template-curly-in-string": "warn"
   },
   "plugins": [],
   "ignorePatterns": [

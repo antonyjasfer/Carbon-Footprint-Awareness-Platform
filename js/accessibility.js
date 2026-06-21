@@ -12,8 +12,12 @@
 // Motion preference
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const prefersReducedMotion =
+export let prefersReducedMotion =
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', e => {
+  prefersReducedMotion = e.matches;
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ARIA live region
@@ -42,7 +46,9 @@ export function announce(message, politeness = 'polite') {
       whiteSpace: 'nowrap',
       border:   '0',
     });
-    document.body.appendChild(_liveRegion);
+    if (document.body) {
+      document.body.appendChild(_liveRegion);
+    }
   }
   // Clear then re-set to force re-announcement
   _liveRegion.setAttribute('aria-live', politeness);
@@ -82,6 +88,10 @@ export function restoreFocus(el) {
 // Modal focus trap
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * CSS selectors for elements that can receive focus.
+ * @type {string}
+ */
 const FOCUSABLE_SELECTORS =
   'a[href], area[href], input:not([disabled]), select:not([disabled]), ' +
   'textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -135,6 +145,10 @@ export function initSkipLink() {
 // Keyboard shortcut registration
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Registry of global keyboard shortcuts.
+ * @type {Map<string, Function>}
+ */
 const _shortcuts = new Map();
 
 /**
@@ -146,6 +160,9 @@ export function registerShortcut(key, handler) {
   _shortcuts.set(key.toLowerCase(), handler);
 }
 
+/**
+ * Initializes global keyboard shortcuts listeners.
+ */
 export function initKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
     // Alt + key shortcuts (avoids conflicts with browser shortcuts)
@@ -160,15 +177,28 @@ export function initKeyboardShortcuts() {
 // Color contrast check (runtime)
 // ─────────────────────────────────────────────────────────────────────────────
 
+const SRGB_THRESHOLD = 0.03928;
+const SRGB_DIVISOR = 12.92;
+const SRGB_OFFSET = 0.055;
+const SRGB_DENOMINATOR = 1.055;
+const SRGB_EXPONENT = 2.4;
+const LUMINANCE_R = 0.2126;
+const LUMINANCE_G = 0.7152;
+const LUMINANCE_B = 0.0722;
+
 /**
  * Calculates relative luminance of an RGB color.
+ * @param {number} r - Red channel (0-255)
+ * @param {number} g - Green channel (0-255)
+ * @param {number} b - Blue channel (0-255)
+ * @returns {number}
  */
 function relativeLuminance(r, g, b) {
   const toLinear = (c) => {
     c /= 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    return c <= SRGB_THRESHOLD ? c / SRGB_DIVISOR : Math.pow((c + SRGB_OFFSET) / SRGB_DENOMINATOR, SRGB_EXPONENT);
   };
-  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  return LUMINANCE_R * toLinear(r) + LUMINANCE_G * toLinear(g) + LUMINANCE_B * toLinear(b);
 }
 
 /**
@@ -204,13 +234,15 @@ function getToastContainer() {
   return _toastContainer;
 }
 
+const DEFAULT_TOAST_DURATION = 4000;
+
 /**
  * Shows an accessible toast notification.
  * @param {string} message
  * @param {'success'|'error'|'info'|'warning'} [type='info']
- * @param {number} [duration=4000] ms
+ * @param {number} [duration=DEFAULT_TOAST_DURATION] ms
  */
-export function showToast(message, type = 'info', duration = 4000) {
+export function showToast(message, type = 'info', duration = DEFAULT_TOAST_DURATION) {
   const container = getToastContainer();
   if (!container) {return;}
 

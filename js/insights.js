@@ -17,8 +17,27 @@ import { GLOBAL_AVG_DAILY_KG, PARIS_TARGET_DAILY } from './data.js';
 // Gemini API config
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The Google Gemini API endpoint for content generation.
+ * @type {string}
+ */
 const GEMINI_ENDPOINT =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+
+const GEMINI_TEMPERATURE = 0.4;
+const GEMINI_MAX_TOKENS = 600;
+
+/**
+ * @typedef {Object} InsightData
+ * @property {string} summary
+ * @property {string} topCategory
+ * @property {string} topTip
+ * @property {string} weeklyChallenge
+ * @property {string} funFact
+ * @property {number} score
+ * @property {'improving'|'worsening'|'stable'} trend
+ * @property {string[]} microActions
+ */
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Prompt builder
@@ -31,6 +50,10 @@ const GEMINI_ENDPOINT =
  * @returns {string}
  */
 function buildPrompt(stats, userName) {
+  if (!stats || !stats.categoryBreakdown) {
+    throw new Error('Invalid stats object provided to buildPrompt.');
+  }
+
   const catBreakdown = Object.entries(stats.categoryBreakdown)
     .map(([cat, kg]) => `${cat}: ${kg.toFixed(2)} kg`)
     .join(', ');
@@ -69,18 +92,24 @@ Return ONLY valid JSON (no markdown, no explanation) matching this exact schema:
  * @throws {Error} on network / API error
  */
 async function callGemini(apiKey) {
+  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+    throw new Error('A valid API key is required to call Gemini.');
+  }
+
   const stats  = computeStats();
   const user   = storage.getUser();
   const prompt = buildPrompt(stats, user.name ?? 'User');
 
+  // Known Limitation: Sending the API key in the URL query string is not ideal for 
+  // strict security, but required by the current Gemini REST API format for browser clients.
   const response = await fetch(`${GEMINI_ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature:     0.4,
-        maxOutputTokens: 600,
+        temperature:     GEMINI_TEMPERATURE,
+        maxOutputTokens: GEMINI_MAX_TOKENS,
         responseMimeType: 'application/json',
       },
       safetySettings: [
@@ -194,7 +223,16 @@ export async function fetchInsights(apiKeyOverride) {
 // DOM Renderer
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Mapping of trend strings to emoji icons.
+ * @type {Record<string, string>}
+ */
 const TREND_ICONS = { improving: '📈', worsening: '📉', stable: '➡️' };
+
+/**
+ * Mapping of trend strings to hex colors.
+ * @type {Record<string, string>}
+ */
 const TREND_COLORS = { improving: '#22c55e', worsening: '#ef4444', stable: '#f59e0b' };
 
 /**

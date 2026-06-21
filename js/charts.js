@@ -6,6 +6,13 @@
  */
 
 import { getWeeklyChartData, getCategoryChartData } from './tracker.js';
+import { PARIS_TARGET_DAILY } from './data.js';
+
+const ANIMATION_DURATION = 600;
+const TREND_ANIMATION_DURATION = 400;
+const DOUGHNUT_CUTOUT = '68%';
+const WEEK_DAYS = 7;
+const MONTH_DAYS = 30;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared defaults
@@ -16,7 +23,7 @@ const FONT_FAMILY = "'Inter', 'Segoe UI', sans-serif";
 const BASE_OPTIONS = {
   responsive: true,
   maintainAspectRatio: false,
-  animation: { duration: 600, easing: 'easeInOutQuart' },
+  animation: { duration: ANIMATION_DURATION, easing: 'easeInOutQuart' },
   plugins: {
     legend: {
       labels: {
@@ -40,7 +47,10 @@ const BASE_OPTIONS = {
   },
 };
 
-// Registry of active chart instances keyed by canvas id
+/**
+ * Registry of active chart instances keyed by canvas id
+ * @type {Map<string, Chart>}
+ */
 const _charts = new Map();
 
 /**
@@ -58,8 +68,14 @@ function upsertChart(canvasId, config) {
     _charts.get(canvasId).destroy();
   }
 
-  const chart = new Chart(canvas, config); // eslint-disable-line no-undef
-  _charts.set(canvasId, chart);
+  try {
+    const chart = new Chart(canvas, config); // eslint-disable-line no-undef
+    _charts.set(canvasId, chart);
+    return chart;
+  } catch (error) {
+    console.error('Failed to initialize Chart.js', error);
+    return null;
+  }
   return chart;
 }
 
@@ -81,7 +97,19 @@ export function destroyAll() {
  */
 export function renderWeeklyChart(canvasId = 'chart-weekly') {
   const { labels, data } = getWeeklyChartData();
-  const PARIS_TARGET = 6.3;
+
+  if (data.length === 0 || data.every(v => v === 0)) {
+    const canvas = document.getElementById(canvasId);
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#64748b';
+      ctx.font      = `14px ${FONT_FAMILY}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('No data yet — log some activities!', canvas.width / 2, canvas.height / 2);
+    }
+    return;
+  }
 
   upsertChart(canvasId, {
     type: 'bar',
@@ -110,8 +138,8 @@ export function renderWeeklyChart(canvasId = 'chart-weekly') {
           borderSkipped: false,
         },
         {
-          label: 'Paris Target (6.3 kg)',
-          data:  Array(7).fill(PARIS_TARGET),
+          label: `Paris Target (${PARIS_TARGET_DAILY} kg)`,
+          data:  Array(WEEK_DAYS).fill(PARIS_TARGET_DAILY),
           type:  'line',
           borderColor: 'rgba(99,102,241,0.8)',
           borderDash: [5, 4],
@@ -194,7 +222,7 @@ export function renderCategoryChart(canvasId = 'chart-category') {
     },
     options: {
       ...BASE_OPTIONS,
-      cutout: '68%',
+      cutout: DOUGHNUT_CUTOUT,
       plugins: {
         ...BASE_OPTIONS.plugins,
         tooltip: {
@@ -222,13 +250,24 @@ export function renderCategoryChart(canvasId = 'chart-category') {
  * @param {{ date: string, kg: number }[]} days30
  */
 export function renderTrendChart(canvasId = 'chart-trend', days30 = []) {
+  if (days30.length === 0) {
+    const canvas = document.getElementById(canvasId);
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#64748b';
+      ctx.font      = `14px ${FONT_FAMILY}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('No data yet — log some activities!', canvas.width / 2, canvas.height / 2);
+    }
+    return;
+  }
+
   const labels = days30.map(d => {
     const date = new Date(d.date + 'T00:00:00');
     return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
   });
   const data = days30.map(d => d.kg);
-
-  const PARIS_TARGET = 6.3;
 
   upsertChart(canvasId, {
     type: 'line',
@@ -258,7 +297,7 @@ export function renderTrendChart(canvasId = 'chart-trend', days30 = []) {
         },
         {
           label: 'Paris Target',
-          data:  Array(30).fill(PARIS_TARGET),
+          data:  Array(MONTH_DAYS).fill(PARIS_TARGET_DAILY),
           borderColor: 'rgba(99,102,241,0.6)',
           borderDash: [6, 4],
           borderWidth: 1.5,
@@ -322,7 +361,7 @@ export function renderSparkline(canvasId, data, color = '#10b981') {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 400 },
+      animation: { duration: TREND_ANIMATION_DURATION },
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
       scales: { x: { display: false }, y: { display: false } },
     },

@@ -7,6 +7,8 @@
  *  - Graceful fallback if storage is unavailable (private browsing)
  */
 
+import { PARIS_TARGET_DAILY } from './data.js';
+
 const STORAGE_VERSION = 1;
 const KEYS = {
   VERSION:    'cfp_version',
@@ -17,6 +19,18 @@ const KEYS = {
   SETTINGS:   'cfp_settings',
   ACHIEVEMENTS:'cfp_achievements',
 };
+
+/** @type {number} Maximum number of activity entries stored to avoid localStorage bloat. */
+const MAX_ACTIVITIES = 1000;
+
+/** @type {number} Green points awarded for each daily log. */
+const GREEN_POINTS_PER_LOG = 10;
+
+/** @type {number} Green points awarded for completing a challenge. */
+const GREEN_POINTS_PER_CHALLENGE = 100;
+
+/** @type {number} Days per week — used to derive weeklyTarget from dailyTarget. */
+const DAYS_PER_WEEK = 7;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utility: safe sanitize to strip potential XSS from string values
@@ -57,6 +71,11 @@ function deepSanitize(value) {
 // Utility: safe localStorage access
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Reads and parses a JSON value from localStorage.
+ * @param {string} key - localStorage key
+ * @returns {*} parsed value, or null if absent or unparseable
+ */
 function safeGet(key) {
   try {
     const raw = localStorage.getItem(key);
@@ -66,6 +85,12 @@ function safeGet(key) {
   }
 }
 
+/**
+ * Serialises a value and writes it to localStorage.
+ * @param {string} key   - localStorage key
+ * @param {*}      value - value to serialise as JSON
+ * @returns {boolean} true if the write succeeded
+ */
 function safeSet(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -76,6 +101,11 @@ function safeSet(key, value) {
   }
 }
 
+/**
+ * Removes a key from localStorage, ignoring errors.
+ * @param {string} key - localStorage key to remove
+ * @returns {void}
+ */
 function safeRemove(key) {
   try { localStorage.removeItem(key); } catch { /* no-op */ }
 }
@@ -84,6 +114,7 @@ function safeRemove(key) {
 // Default schemas
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** @type {{name: string, avatar: string, joinedAt: string, greenPoints: number, streak: number, lastLogDate: string|null}} */
 const DEFAULT_USER = {
   name: 'You',
   avatar: '🌍',
@@ -93,10 +124,11 @@ const DEFAULT_USER = {
   lastLogDate: null,
 };
 
+/** @type {{geminiApiKey: string, dailyTarget: number, weeklyTarget: number, theme: string, notifications: boolean, units: string, teamId: string|null, teamName: string|null}} */
 const DEFAULT_SETTINGS = {
   geminiApiKey: '',
-  dailyTarget: 6.3,          // kg CO₂e (Paris Agreement daily target)
-  weeklyTarget: 44.1,
+  dailyTarget: PARIS_TARGET_DAILY,
+  weeklyTarget: PARIS_TARGET_DAILY * DAYS_PER_WEEK,
   theme: 'dark',
   notifications: true,
   units: 'metric',
@@ -104,12 +136,22 @@ const DEFAULT_SETTINGS = {
   teamName: null,
 };
 
-const DEFAULT_CHALLENGES_STATE = {}; // { [challengeId]: { startDate, progress, completed } }
+/** @type {Object.<string, {startDate: string, progress: number, completed: boolean}>} */
+const DEFAULT_CHALLENGES_STATE = {};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StorageManager class
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Manages persistent application state in localStorage.
+ *
+ * Provides CRUD operations for user profile, activity log, settings,
+ * achievements, challenges, and team data, with built-in XSS sanitisation
+ * and versioned schema migration.
+ *
+ * @class
+ */
 class StorageManager {
   constructor() {
     this._init();
@@ -140,10 +182,19 @@ class StorageManager {
 
   // ── User Profile ─────────────────────────────────────────────────────────
 
+  /**
+   * Returns the current user profile, merged with defaults.
+   * @returns {{name: string, avatar: string, joinedAt: string, greenPoints: number, streak: number, lastLogDate: string|null}}
+   */
   getUser() {
     return { ...DEFAULT_USER, ...(safeGet(KEYS.USER) ?? {}) };
   }
 
+  /**
+   * Merges whitelisted fields into the stored user profile.
+   * @param {Object} updates - partial user fields to update
+   * @returns {void}
+   */
   saveUser(updates) {
     const current = this.getUser();
     const sanitized = deepSanitize(updates);
@@ -157,10 +208,19 @@ class StorageManager {
 
   // ── Settings ─────────────────────────────────────────────────────────────
 
+  /**
+   * Returns the current settings, merged with defaults.
+   * @returns {{geminiApiKey: string, dailyTarget: number, weeklyTarget: number, theme: string, notifications: boolean, units: string, teamId: string|null, teamName: string|null}}
+   */
   getSettings() {
     return { ...DEFAULT_SETTINGS, ...(safeGet(KEYS.SETTINGS) ?? {}) };
   }
 
+  /**
+   * Merges whitelisted fields into the stored settings.
+   * @param {Object} updates - partial settings fields to update
+   * @returns {void}
+   */
   saveSettings(updates) {
     const current = this.getSettings();
     const sanitized = deepSanitize(updates);
@@ -174,6 +234,10 @@ class StorageManager {
 
   // ── Activity Log ──────────────────────────────────────────────────────────
 
+  /**
+   * Returns all stored activities (newest first).
+   * @returns {Object[]} array of activity records
+   */
   getActivities() {
     const raw = safeGet(KEYS.ACTIVITIES);
     return Array.isArray(raw) ? raw : [];
@@ -199,8 +263,11 @@ class StorageManager {
     }
 
     const activities = this.getActivities();
+    const id = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     const saved = {
-      id:        crypto.randomUUID(),
+      id,
       timestamp: new Date().toISOString(),
       category:  sanitize(String(entry.category)),
       type:      sanitize(String(entry.type)),
@@ -211,21 +278,34 @@ class StorageManager {
     };
 
     activities.unshift(saved); // newest first
-    // Keep max 1000 entries to avoid bloating storage
-    if (activities.length > 1000) {activities.splice(1000);}
+    if (activities.length > MAX_ACTIVITIES) {activities.splice(MAX_ACTIVITIES);}
     safeSet(KEYS.ACTIVITIES, activities);
 
     this._updateStreak();
     return saved;
   }
 
+  /**
+   * Removes an activity by its unique ID.
+   * @param {string} id - activity record ID
+   * @returns {void}
+   * @throws {Error} if id is not a string
+   */
   deleteActivity(id) {
+    if (typeof id !== 'string') {
+      throw new Error(`deleteActivity: id must be a string, got ${typeof id}`);
+    }
     const activities = this.getActivities();
     const filtered = activities.filter(a => a.id !== id);
     safeSet(KEYS.ACTIVITIES, filtered);
   }
 
-  /** Returns activities within [startDate, endDate] ISO strings. */
+  /**
+   * Returns activities within [startDate, endDate] ISO strings.
+   * @param {string} startDate - ISO date string (inclusive lower bound)
+   * @param {string} endDate   - ISO date string (inclusive upper bound)
+   * @returns {Object[]} matching activity records
+   */
   getActivitiesInRange(startDate, endDate) {
     return this.getActivities().filter(a => {
       const t = a.timestamp;
@@ -233,14 +313,21 @@ class StorageManager {
     });
   }
 
-  /** Returns activities for today. */
+  /**
+   * Returns all activities logged today (since midnight local time).
+   * @returns {Object[]} today's activity records
+   */
   getTodayActivities() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return this.getActivities().filter(a => new Date(a.timestamp) >= today);
   }
 
-  /** Returns activities for the last N days. */
+  /**
+   * Returns activities for the last N days.
+   * @param {number} [days=7] - number of past days to include
+   * @returns {Object[]} activity records within the window
+   */
   getRecentActivities(days = 7) {
     const since = new Date();
     since.setDate(since.getDate() - days);
@@ -250,6 +337,11 @@ class StorageManager {
 
   // ── Streak tracking ───────────────────────────────────────────────────────
 
+  /**
+   * Updates the user's consecutive logging streak and awards daily green points.
+   * @returns {void}
+   * @private
+   */
   _updateStreak() {
     const user = this.getUser();
     const todayStr = new Date().toDateString();
@@ -265,17 +357,26 @@ class StorageManager {
     this.saveUser({
       streak: newStreak,
       lastLogDate: todayStr,
-      greenPoints: (user.greenPoints ?? 0) + 10, // +10 pts for logging
+      greenPoints: (user.greenPoints ?? 0) + GREEN_POINTS_PER_LOG,
     });
   }
 
   // ── Achievements ──────────────────────────────────────────────────────────
 
+  /**
+   * Returns the list of unlocked achievement IDs.
+   * @returns {string[]} unlocked achievement IDs
+   */
   getUnlockedAchievements() {
     const raw = safeGet(KEYS.ACHIEVEMENTS);
     return Array.isArray(raw) ? raw : [];
   }
 
+  /**
+   * Marks an achievement as unlocked if it hasn't been already.
+   * @param {string} id - achievement ID
+   * @returns {boolean} true if newly unlocked, false if already had it
+   */
   unlockAchievement(id) {
     const unlocked = this.getUnlockedAchievements();
     if (!unlocked.includes(id)) {
@@ -288,11 +389,20 @@ class StorageManager {
 
   // ── Challenges ────────────────────────────────────────────────────────────
 
+  /**
+   * Returns the state map of all challenges.
+   * @returns {Object.<string, {startDate: string, progress: number, completed: boolean}>}
+   */
   getChallengesState() {
     const raw = safeGet(KEYS.CHALLENGES);
     return (raw && typeof raw === 'object') ? raw : {};
   }
 
+  /**
+   * Starts tracking a challenge (no-op if already completed).
+   * @param {string} challengeId - challenge ID to start
+   * @returns {void}
+   */
   startChallenge(challengeId) {
     const state = this.getChallengesState();
     if (state[challengeId]?.completed) {return;} // already done
@@ -304,13 +414,28 @@ class StorageManager {
     safeSet(KEYS.CHALLENGES, state);
   }
 
+  /**
+   * Updates the progress value for an active challenge.
+   * @param {string} challengeId - challenge ID
+   * @param {number} progress    - new progress value (must be a finite number)
+   * @returns {void}
+   * @throws {Error} if progress is not a finite number
+   */
   updateChallengeProgress(challengeId, progress) {
+    if (!Number.isFinite(progress)) {
+      throw new Error(`updateChallengeProgress: progress must be a finite number, got ${progress}`);
+    }
     const state = this.getChallengesState();
     if (!state[challengeId]) {return;}
     state[challengeId].progress = progress;
     safeSet(KEYS.CHALLENGES, state);
   }
 
+  /**
+   * Marks a challenge as completed and awards green points.
+   * @param {string} challengeId - challenge ID to complete
+   * @returns {void}
+   */
   completeChallenge(challengeId) {
     const state = this.getChallengesState();
     if (!state[challengeId]) {return;}
@@ -319,21 +444,34 @@ class StorageManager {
     safeSet(KEYS.CHALLENGES, state);
 
     const user = this.getUser();
-    this.saveUser({ greenPoints: (user.greenPoints ?? 0) + 100 });
+    this.saveUser({ greenPoints: (user.greenPoints ?? 0) + GREEN_POINTS_PER_CHALLENGE });
   }
 
   // ── Team ─────────────────────────────────────────────────────────────────
 
+  /**
+   * Returns the stored team data, or null if none.
+   * @returns {Object|null}
+   */
   getTeamData() {
     return safeGet(KEYS.TEAM);
   }
 
+  /**
+   * Persists team data after sanitisation.
+   * @param {Object} team - team data to store
+   * @returns {void}
+   */
   saveTeamData(team) {
     safeSet(KEYS.TEAM, deepSanitize(team));
   }
 
   // ── Export / Import ───────────────────────────────────────────────────────
 
+  /**
+   * Exports all user data as a JSON string (API key is redacted).
+   * @returns {string} pretty-printed JSON export
+   */
   exportData() {
     return JSON.stringify({
       version:     STORAGE_VERSION,
@@ -345,6 +483,10 @@ class StorageManager {
     }, null, 2);
   }
 
+  /**
+   * Erases all stored data and re-initialises with defaults.
+   * @returns {void}
+   */
   clearAll() {
     Object.values(KEYS).forEach(safeRemove);
     this._init();
